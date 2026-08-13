@@ -1,0 +1,90 @@
+# CHANGE
+
+## 2026-08-13
+
+- 拆分：模型/纹理移出 HTML（9.2MB → 24KB；White.pmx + tex/ toon/ spa/ 10 张贴图）
+- P1-1 修复：本地 PMX 选择/拖入替换（原为死代码，无事件绑定）
+  - 新增 loadLocalFile()：file.arrayBuffer() → loader.parse
+  - 遮罩点击 / change / 全局 dragover+drop
+  - 替换时清理旧模型（disposeModel）+ 旧物理（physics.dispose）
+  - 默认加载失败 → 显示遮罩提示
+  - 移动端入口：PHYS 面板头部常驻 ⭳ LOAD 按钮（折叠时可见，stopPropagation 防误触）
+  - tip 文案改触摸友好："拖动旋转 · 双指缩放"
+- 改型：去掉文件上传/拖入，改为【模型选择加载】
+  - 解压 RAR 模型包 → models/冰饭式初音未来/（2 个 PMX + tex/ + spa/）
+  - 新增 manifest.json 模型清单（冰饭式普通版 / 多物理马尾版 / White 白模）
+  - LOAD 按钮 → ▣ MODELS，弹出面板点选切换（fetch → loader.parse(path 相对模型目录)）
+  - 移除 fileinput / filepick 遮罩 / 拖拽事件（loadLocalFile 一并删除）
+  - 面板高亮当前模型（current 样式）
+  - 默认加载模型：冰饭式 → 改回 White 白模（initModels 按 id=white 取默认）
+- 回退：模型选择加载 → 直接 loader.load('White.pmx')（模型未加载，原因待查）
+  - 移除 MODELS 面板 / manifest 读取 / loadServerModel / initModels
+  - models/ 与 manifest.json 文件保留，待排查后再启用
+- P1-2 修复：方位角差值 wrap 到 [-π, π]（跨边界不再反向爆冲）
+- UI 优化（kill-ai-slop）：
+  - 移除不可见扫描线（body::before, opacity 0.015）
+  - 暗角 0.55→0.3 且 z-index 21→1（不再盖 UI，解决 P2-3）
+  - #log 移除 180deg 表面渐变 → 纯色 var(--panel)
+  - 符号 ▣/▸/▾ → Material Icons（tune / expand_more / expand_less），新增 fonts.googleapis CDN 依赖
+- 视觉改版：终端风格 → Material Design（深色）+ 思源黑体（Noto Sans SC）
+  - 移除 #terminal 窗口/titlebar 红黄绿点/boot 假日志/终端光标
+  - 新结构：AppBar（标题+模型状态）+ 全屏 stage + HUD 信息卡 + PHYS 卡片 + 左下日志卡 + 底部 tip
+  - 日志真实化（删除预置 lines/nextLog，解决 P2-5）：appendLine 用 Material 图标+去 [OK] 前缀，最多 4 条
+  - 配色：保留原 mint 绿作 primary，中性深色 surface，Material elevation 阴影，圆角 8/12px
+  - 新增 Noto Sans SC 字体 CDN 依赖
+- 滑块：原生 range → Material Web Components <md-slider>（@material/web，参考用户新 index.html）
+  - 7 个物理滑块全部替换，JS 兼容（value/input 事件/nextElementSibling 不变）
+  - md-slider 变量配色（active 浅蓝 #64b5f6）
+- 主色调：mint 绿 → 浅蓝 #64b5f6（--primary，AppBar/状态点/图标/滑块统一）
+- 浅色主题：深色 → 白色 Material（--bg #eef2f7 / 卡片白 / 深色文字 / 浅阴影）
+  - AppBar、HUD、PHYS、日志、tip 全部改白底；主色微调 #42a5f5（白底下可读）
+  - 3D 场景同步浅色化：scene.background #e3eaf2、grid/装饰环浅蓝灰
+- 滑块：md-slider（@material/web）→ 原生 input range + 自定义 Material 2 风格
+  - 移除 @material/web 依赖（importmap/import 删除，CDN 少一个）
+  - 样式：4px 圆角轨道 + active 填充（WebKit 渐变 --fill / Firefox range-progress）+ 白色圆 thumb + 拖拽光环
+  - JS 新增 updateSliderFill() 计算 active 占比
+- 角色偏暗修复：贴图 colorSpace 设 SRGBColorSpace（sRGB 贴图按线性渲染偏暗）+ 光照增强
+  - Ambient 0.75→1.0 / key 1.35→1.8 / fill 0.55→0.8(白) / rim 0.5→0.7
+- P1-3 修复：CDN 静默崩溃 → Ammo 调用 try/catch 保护 + 全局 error 监听显示可见错误条
+- P1-4 修复：applyGravity 复用 _gVec 单例向量（不再每次 new btVector3）
+- 发尾抽搐修复（离心力）：力按质量归一 F=m·ω²r + 上限 60→30 + 每刚体 lerp 平滑（WeakMap 缓存）
+- 离心力默认值 40→0（默认关闭，面板可开）
+- HUD 详情卡：改为可折叠（点击头部展开/收起，Material 箭头图标，默认收起）
+- 卡片高度统一：PHYS 头部规格对齐 HUD（padding 8px 14px、标题 12px、图标 15/18px）
+- 卡片层级：动态置顶——后点击/展开的卡片 z-index 30，另一张回落 20（raiseCardTop）
+- 新增复位视角按钮（FAB，restart_alt 图标）：恢复模型加载后的相机位置/目标，不重置 PHYS 参数；位置在右下角
+- 移除底部操作提示（#tip）
+- 层级修正：日志卡固定 z-index 15 底层，不参与 HUD/PHYS 置顶；复位按钮直径 44→32px（对齐卡片收起高度）
+- 复位按钮样式：实心浅蓝 FAB → 白色卡片同款（白底+细边框+主色图标+浅阴影）；圆形 → 方形（32px，r-md 圆角）
+- 视角修正：相机适配 x 偏移归零（x=0 正对模型正面，首次加载/复位均正面朝用户）
+- 新增设置：自动旋转开关（Material switch，默认关闭）
+- 调整：自动旋转开关移到 PHYS 面板（默认开启）
+- 抖动修复：待机摇摆幅度减半/频率降低 + 动态刚体 setDamping(0.15, 0.25)（弹簧无阻尼振荡是呆毛/裙摆抖动主因）
+- 遗留抖动收敛：阻尼加大 setDamping(0.3, 0.5) + 摇摆幅度再降(0.015/0.012/0.018) + maxStepNum 3→5
+- 物理默认参数按用户调校更新：重力 -98→-30、裙摆弹簧 40→200（其余不变）
+- P2-1 修复：裙摆识别兼容日文(全/半角)/英文（スカート/skirt/ｽｶｰﾄ），英文约束名也能命中
+- P2-2 修复：约束修正失败不再静默——console.warn 详细 + 页面提示一次；物理释放失败加 console.warn
+- P2-1 补充修复：`setLimit is not a function`（非弹簧类约束无此方法）——先检查方法存在，非 6DofSpring 约束直接跳过，不再报错
+- P3-1 修复：装饰环抬到模型头顶上方（ring.position.y = (size.y+1.5)*s），不再横穿身体
+- P3-6 修复：FPS 计时起点改为第一帧（lastT=0 哨兵），不含初始化耗时
+- 回退 P3-1 的环改动；装饰环**恢复原位**（原设计：横穿身体是刻意保留，勿移）
+- P3-2 修复：resize rAF 防抖 + 同步 pixelRatio
+- P3-4 修复：相机 min/maxDistance 边界包含当前距离，加载后不再突变变焦
+- P3-3 修复：待机摇摆移到 physics.update 之后设置——不再被 MMDPhysics._updateBones 回写覆盖（消除骨骼/物理来回拉扯的抖动源）
+- T-1 模型选择加载（重新接入）：改用 MMDLoader.load 官方路径（上次 fetch+parse 自定义链路不可靠）
+  - PHYS 头部 MODELS 按钮 + 右上模型列表面板（Material 卡片，当前项高亮）
+  - initModels 读 manifest.json → 默认加载 White；失败 fallback 白模
+  - 切换模型复用 disposeModel/物理清理（已在 onModelLoaded 保留）
+- 额头毛发坠地修复：新增 guardFallingBodies()——约束失效的刚体（y<-1）每帧复位到骨骼锚点+清速度（不影响正常物理）
+- 【撤销】guardFallingBodies 坠地保护（用户要求回退）
+- 新增模型：Kasane Teto SynthV（SV / SV_TEX 两个版本，26 项纹理路径核对一致；Tex 文件名按 PMX 引用改首字母大写）
+- 新增模型：Sour 式初音ミク（White 正名 + Black 姐妹版，源包 Sour式初音ミクVer.1.02.zip）
+  - "White 白模（调试示例）" → "Sour 式初音ミク（White）"，file 指向 models/Sour式初音ミク/
+  - 新增 "Sour 式初音ミク（Black）"（models/Sour式初音ミク/Black.pmx）
+- 物理释放修复：`physics.dispose is not a function`（r160 MMDPhysics 无 dispose）→ 手动释放 Ammo 资源（world 移除刚体/约束 + Ammo.destroy）
+- 层级修正：模型选择面板 z-index 25→40（弹出层永远最高，不再被展开的 PHYS（动态 30）盖住）
+- 去重：删除根目录 White.pmx/tex/toon/spa（与 models/Sour式初音ミク/ 完全重复，约 6.8MB）；fallback 改指 models/Sour式初音ミク/White.pmx
+- 开源准备：删除 LICENSE（用户不写协议）；按各模型 readme 核对许可——冰饭式禁止未改造模型二次配布，已加入 .gitignore 不随仓库分发；README 重写模型版权章节
+- 移除冰饭式初音未来：删除 models/冰饭式初音未来/ + manifest 条目（模型本身有遗留问题：额头毛发坠地）
+- 日志卡：改为可折叠（点击头部展开/收起，默认展开），日志上移给复位按钮让位
+

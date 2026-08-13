@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMD 白模查看器</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef2f7;            /* 页面背景（浅灰蓝） */
+    --surface: #ffffff;       /* 卡片表面（白） */
+    --surface2: #f3f6fa;      /* 悬停/内嵌 */
+    --line: #e0e7ef;          /* 分隔线 */
+    --text: #1e2a3a;          /* 主文字（深蓝黑） */
+    --dim: #64748b;           /* 次要文字 */
+    --primary: #42a5f5;       /* 主色：浅蓝 */
+    --amber: #f0a63a;
+    --red: #e05050;
+    --elev-1: 0 1px 2px rgba(15,23,42,.06), 0 2px 8px rgba(15,23,42,.05);
+    --elev-2: 0 2px 6px rgba(15,23,42,.08), 0 8px 24px rgba(15,23,42,.08);
+    --r-lg: 12px;
+    --r-md: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text);
+  }
+
+  /* ===== Material AppBar ===== */
+  #appbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 52px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 16px;
+    background: #ffffff;
+    border-bottom: 1px solid var(--line);
+    z-index: 30;
+    user-select: none;
+  }
+  #appbar .ab-icon { font-size: 22px; color: var(--primary); }
+  #appbar .ab-title { font-size: 15px; font-weight: 500; letter-spacing: .5px; color: var(--text); }
+  #appbar .ab-spacer { flex: 1; }
+  #appbar .ab-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+  #appbar .ab-status b { color: var(--text); font-weight: 500; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+
+  /* ===== 场景 ===== */
+  #stage { position: fixed; inset: 52px 0 0 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  #stage canvas:active { cursor: grabbing; }
+
+  /* ===== HUD 信息卡（左上） ===== */
+  #hud {
+    position: absolute; left: 16px; top: 16px;
+    min-width: 172px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--dim);
+    pointer-events: none;
+    box-shadow: var(--elev-1);
+    z-index: 20;  /* 与 PHYS 同级，点击后动态置顶 30 */
+  }
+  #hud .hud-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    cursor: pointer; user-select: none;
+    pointer-events: auto;  /* 头部可点击，内容区不挡 3D 操作 */
+  }
+  #hud .hud-title { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text); }
+  #hud .hud-title .material-icons { font-size: 15px; color: var(--primary); }
+  #hud .hud-toggle { color: var(--dim); display: flex; }
+  #hud .hud-toggle .material-icons { font-size: 18px; }
+  #hud .hud-body { margin-top: 8px; line-height: 1.9; }
+  #hud .hud-row { display: flex; justify-content: space-between; gap: 18px; }
+  #hud b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+  #hud.min { min-width: 0; }
+  #hud.min .hud-body { display: none; }
+
+  /* 自动旋转开关（Material switch 风格） */
+  .switch {
+    width: 34px; height: 18px;
+    border-radius: 999px;
+    background: var(--line);
+    position: relative;
+    cursor: pointer;
+    pointer-events: auto;
+    flex: 0 0 auto;
+    transition: background .15s ease;
+  }
+  .switch::after {
+    content: "";
+    position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    transition: transform .15s ease;
+  }
+  .switch.on { background: var(--primary); }
+  .switch.on::after { transform: translateX(16px); }
+  #phys-panel .pp-row .switch { margin-left: auto; }
+
+  /* ===== 物理参数卡（右上，可折叠） ===== */
+  #phys-panel {
+    position: absolute; right: 16px; top: 16px;
+    width: 252px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    font-size: 12px;
+    color: var(--dim);
+    z-index: 20;
+    box-shadow: var(--elev-2);
+    user-select: none;
+  }
+  #phys-panel .pp-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px;   /* 与 HUD 头部高度对齐 */
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  #phys-panel .pp-title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; letter-spacing: .5px; color: var(--text); }
+  #phys-panel .pp-title .material-icons { font-size: 15px; color: var(--primary); }
+  #phys-panel .pp-toggle { margin-left: auto; color: var(--dim); display: flex; }
+  #phys-panel .pp-toggle .material-icons { font-size: 18px; }
+  #phys-panel .pp-models {
+    margin-left: 6px;
+    padding: 3px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 10px; letter-spacing: 1px;
+    color: var(--primary);
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  #phys-panel .pp-models:active { background: var(--surface2); }
+
+  /* ===== 模型选择面板（右上角下拉） ===== */
+  #model-panel {
+    position: absolute; right: 16px; top: 60px;
+    width: min(264px, calc(100vw - 32px));
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    box-shadow: var(--elev-2);
+    font-size: 12px;
+    z-index: 40;   /* 弹出层永远最高（高于 HUD/PHYS 动态置顶 30） */
+    display: none;
+  }
+  #model-panel.show { display: block; }
+  #model-panel .mp-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    font-weight: 500; color: var(--text);
+  }
+  #model-panel .mp-close { color: var(--dim); cursor: pointer; padding: 0 4px; font-size: 14px; }
+  #model-panel .mp-list { padding: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
+  #model-panel .mp-item {
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: #fff;
+    color: var(--text);
+    font-family: inherit; font-size: 12px;
+    text-align: left; line-height: 1.5;
+    cursor: pointer;
+  }
+  #model-panel .mp-item:active { background: var(--surface2); }
+  #model-panel .mp-item.current { border-color: var(--primary); }
+  #model-panel .mp-item .mp-note { display: block; font-size: 10px; color: var(--amber); }
+  #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  #phys-panel .pp-row { display: flex; align-items: center; gap: 10px; }
+  #phys-panel .pp-row label { flex: 0 0 62px; font-size: 11px; }
+  /* Material 2 风格滑块（自定义，跨浏览器；--fill 由 JS 更新） */
+  #phys-panel .pp-row input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1; min-width: 0;
+    height: 26px;
+    background: transparent;
+    cursor: pointer;
+  }
+  #phys-panel .pp-row input[type=range]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--primary) var(--fill, 50%), var(--line) var(--fill, 50%));
+  }
+  #phys-panel .pp-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--primary);
+    box-shadow: 0 1px 3px rgba(15,23,42,.2);
+  }
+  #phys-panel .pp-row input[type=range]:active::-webkit-slider-thumb {
+    background: var(--primary);
+    box-shadow: 0 0 0 9px rgba(66,165,245,.18);
+  }
+  #phys-panel .pp-row input[type=range]::-moz-range-track {
+    height: 4px; border-radius: 2px;
+    background: var(--line);
+  }
+  #phys-panel .pp-row input[type=range]::-moz-range-progress {
+    height: 4px; border-radius: 2px;
+    background: var(--primary);
+  }
+  #phys-panel .pp-row input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--primary);
+    box-shadow: 0 1px 3px rgba(15,23,42,.2);
+  }
+  #phys-panel .pp-row output { flex: 0 0 34px; text-align: right; font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; }
+  #phys-panel.min { width: auto; }
+  #phys-panel.min .pp-body { display: none; }
+
+  /* ===== 加载日志卡（左下，可折叠，最多 4 条） ===== */
+  #log {
+    position: absolute; left: 16px; bottom: 16px;   /* 贴底（复位按钮在右下，不冲突） */
+    width: min(300px, calc(100vw - 32px));
+    background: rgba(255,255,255,.94);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    box-shadow: var(--elev-1);
+    padding: 8px 12px;
+    font-size: 12px;
+    z-index: 15;   /* 固定底层，不参与 HUD/PHYS 置顶争抢 */
+    pointer-events: none;
+  }
+  #log .log-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    cursor: pointer; user-select: none;
+    pointer-events: auto;
+  }
+  #log .log-title { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text); }
+  #log .log-title .material-icons { font-size: 15px; color: var(--primary); }
+  #log .log-toggle { color: var(--dim); display: flex; }
+  #log .log-toggle .material-icons { font-size: 18px; }
+  #log .log-body { margin-top: 6px; }
+  #log.min .log-body { display: none; }
+  #log .log-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; color: var(--dim); line-height: 1.5; }
+  #log .log-item .material-icons { font-size: 14px; flex: 0 0 auto; }
+  #log .log-item.ok  .material-icons { color: var(--primary); }
+  #log .log-item.dim .material-icons { color: var(--dim); }
+  #log .log-item.warn .material-icons { color: var(--amber); }
+  #log .log-item.err .material-icons { color: var(--red); }
+  #log .log-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ===== 复位视角按钮（右下角，方形卡片同款） ===== */
+  #btn-reset {
+    position: absolute; right: 16px; bottom: 16px;
+    width: 32px; height: 32px;   /* 边长对齐卡片收起高度 */
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: #fff;
+    color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--elev-1);
+    cursor: pointer;
+    z-index: 25;
+    transition: background .15s ease;
+  }
+  #btn-reset:active { background: var(--surface2); }
+  #btn-reset .material-icons { font-size: 18px; }
+
+  /* ===== 操作提示（已移除） ===== */
+</style>
+</head>
+<body>
+
+<header id="appbar">
+  <i class="material-icons ab-icon">view_in_ar</i>
+  <span class="ab-title">MMD 白模查看器</span>
+  <span class="ab-spacer"></span>
+  <span class="ab-status"><span class="status-dot"></span><b id="ab-model">加载中…</b></span>
+</header>
+<main id="stage">
+  <div id="hud" class="min">
+    <div class="hud-head">
+      <span class="hud-title"><i class="material-icons">info</i>详情</span>
+      <span class="hud-toggle"><i class="material-icons">expand_more</i></span>
+    </div>
+    <div class="hud-body">
+      <div class="hud-row"><span>模型</span><b>HATSUNE_MIKU_01</b></div>
+      <div class="hud-row"><span>渲染</span><b>MMD / PMX</b></div>
+      <div class="hud-row"><span>顶点</span><b id="hud-v">--</b></div>
+      <div class="hud-row"><span>面数</span><b id="hud-f">--</b></div>
+      <div class="hud-row"><span>FPS</span><b id="fps">--</b></div>
+    </div>
+  </div>
+    <div id="phys-panel" class="min">
+      <div class="pp-head">
+        <span class="pp-title"><i class="material-icons">tune</i>PHYS</span>
+        <span class="pp-models">MODELS</span>
+        <span class="pp-toggle"><i class="material-icons">expand_more</i></span>
+      </div>
+      <div class="pp-body">
+        <div class="pp-row"><label>自动旋转</label><span id="sw-rotate" class="switch on" role="switch" aria-checked="true" title="开启后模型自动环绕展示"></span></div>
+        <div class="pp-row"><label>离心力</label><input type="range" id="pp-cf" min="0" max="200" value="0" step="1"><output>0</output></div>
+        <div class="pp-row"><label>角速度上限</label><input type="range" id="pp-w" min="0.5" max="5" value="2.5" step="0.1"><output>2.5</output></div>
+        <div class="pp-row"><label>平滑系数</label><input type="range" id="pp-sm" min="0" max="1" value="0.4" step="0.05"><output>0.40</output></div>
+        <div class="pp-row"><label>重力</label><input type="range" id="pp-g" min="-300" max="0" value="-30" step="1"><output>-30</output></div>
+        <div class="pp-row"><label>裙摆弹簧</label><input type="range" id="pp-sp" min="1" max="200" value="200" step="1"><output>200</output></div>
+        <div class="pp-row"><label>限位倍率</label><input type="range" id="pp-lm" min="1" max="30" value="10" step="1"><output>10</output></div>
+        <div class="pp-row"><label>STOP_ERP</label><input type="range" id="pp-erp" min="0" max="1" value="0.1" step="0.01"><output>0.10</output></div>
+      </div>
+    </div>
+    <div id="model-panel">
+      <div class="mp-head"><span>选择模型</span><span class="mp-close">✕</span></div>
+      <div class="mp-list" id="model-list"></div>
+    </div>
+    <div id="log">
+      <div class="log-head">
+        <span class="log-title"><i class="material-icons">terminal</i>日志</span>
+        <span class="log-toggle"><i class="material-icons">expand_less</i></span>
+      </div>
+      <div class="log-body" id="log-list"></div>
+    </div>
+    <button id="btn-reset" title="复位视角"><i class="material-icons">restart_alt</i></button>
+  </main>
+
+<!-- Ammo.js 物理引擎（three r160 custom wasm 版，含 setParam/CFM 支持，异步初始化） -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/ammo.wasm.js"></script>
+<script>
+  /* P1-3：Ammo 未加载时不再抛 ReferenceError 中断脚本（原 Ammo() 直接调用会炸掉整个 script 块） */
+  window.AmmoReady = null;
+  try {
+    if (typeof Ammo === 'function') {
+      window.AmmoReady = Ammo().then(function (AmmoLib) { window.Ammo = AmmoLib; });
+    }
+  } catch (e) {
+    console.error('[Ammo] 初始化失败:', e);
+  }
+
+  /* P1-3：全局错误兜底——module import 失败 / CDN 资源失败时显示可见错误条，不再静默黑屏 */
+  window.addEventListener('error', function (e) {
+    if (document.getElementById('fatal-error')) return;
+    var t = e.target || {};
+    var src = t.src || t.href;
+    var msg = e.message || (src ? '资源加载失败: ' + src : '未知错误');
+    var el = document.createElement('div');
+    el.id = 'fatal-error';
+    el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;padding:10px 16px;' +
+      'background:#e05050;color:#fff;font-size:12px;line-height:1.5;z-index:999;font-family:sans-serif;';
+    el.textContent = '加载错误: ' + msg;
+    document.body.appendChild(el);
+  }, true);
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { MMDLoader } from 'three/addons/loaders/MMDLoader.js';
+import { MMDPhysics } from 'three/addons/animation/MMDPhysics.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ * MMD 白模查看器 — Three.js MMDLoader 加载 PMX 模型（manifest.json 多模型）
+ * ============================================================ */
+
+/* ---------- 加载日志（Material 列表，最多 4 条） ---------- */
+const logEl = document.getElementById('log-list');
+function appendLine(line) {
+  const c = line.c || 'ok';
+  const icon = c === 'err' ? 'error' : c === 'warn' ? 'warning' : c === 'dim' ? 'info' : 'check_circle';
+  const text = String(line.t)
+    .replace(/^\[ (?:OK|\.\.|WARN|ERR|PHYS) \]\s*/, '')
+    .replace(/\s*\.{3,}\s*$/, '');
+  const div = document.createElement('div');
+  div.className = 'log-item ' + c;
+  div.innerHTML = '<i class="material-icons">' + icon + '</i><span>' + text + '</span>';
+  logEl.appendChild(div);
+  while (logEl.children.length > 4) logEl.removeChild(logEl.firstChild);
+}
+appendLine({ t: '初始化 3D 渲染器', c: 'ok' });
+
+/* ---------- 3D 场景 ---------- */
+const stage = document.getElementById('stage');
+const w = stage.clientWidth, h = stage.clientHeight;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe3eaf2);  /* 浅色主题背景 */
+
+const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 200);
+camera.position.set(0, 4, 14);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(w, h);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+stage.appendChild(renderer.domElement);
+
+/* ---- 光照：白模需要充足光源 ---- */
+scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+const key = new THREE.DirectionalLight(0xffffff, 1.8);
+key.position.set(5, 10, 7);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.8);
+fill.position.set(-6, 3, -6);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.7);
+rim.position.set(0, 6, -10);
+scene.add(rim);
+
+/* 承载模型，做旋转与浮动 */
+const group = new THREE.Group();
+scene.add(group);
+
+/* 地面网格 */
+const grid = new THREE.GridHelper(24, 24, 0xb9c7d4, 0xcfd9e2);
+grid.position.y = -0.01;
+grid.material.transparent = true;
+grid.material.opacity = 0.55;
+scene.add(grid);
+
+/* 装饰环绕线环（原位保留——原设计，勿移） */
+const ring = new THREE.LineLoop(
+  new THREE.BufferGeometry().setFromPoints(
+    Array.from({ length: 64 }, (_, i) => {
+      const a = (i / 64) * Math.PI * 2;
+      return new THREE.Vector3(Math.cos(a) * 5.2, Math.sin(a) * 1.2 + 3.4, Math.sin(a) * 5.2);
+    })
+  ),
+  new THREE.LineBasicMaterial({ color: 0x9fb2c4, transparent: true, opacity: 0.45 })
+);
+scene.add(ring);
+
+/* ---------- 模型加载 ---------- */
+let physics = null;  /* MMD 物理引擎实例 */
+let mmdMesh = null;  /* 加载后的模型（待机动画用） */
+
+/* ---------- 物理参数（右上角 PHYS 面板可实时调节） ---------- */
+const MMD_PARAMS = {
+  cf: 0,         /* 离心力强度系数（默认关闭，用户按需开启） */
+  wMax: 2.5,     /* 角速度限幅 rad/s */
+  smooth: 0.4,   /* 角速度平滑系数 */
+  gravity: -30,  /* 重力（用户调校默认，缓解裙摆抖动） */
+  spring: 200,   /* 裙摆弹簧刚度上限（用户调校默认） */
+  limitMul: 10,  /* 裙摆旋转限位倍率（×原始） */
+  stopErp: 0.1   /* 限位混合系数 STOP_ERP */
+};
+
+/* 应用重力（面板可调）；_gVec 复用防泄漏（P1-4） */
+let _gVec = null;
+function applyGravity() {
+  if (physics && physics.world && typeof Ammo !== 'undefined') {
+    if (!_gVec) _gVec = new Ammo.btVector3(0, 0, 0);
+    _gVec.setValue(0, MMD_PARAMS.gravity, 0);
+    physics.world.setGravity(_gVec);
+  }
+}
+
+/* 裙摆约束修正（加载后 & 面板变更时均可重应用） */
+let skirtErrShown = false;  /* 约束修正失败只提示一次，避免刷屏 */
+
+function applySkirtFixes() {
+  if (!physics || !physics.constraints) return 0;
+  let skirtN = 0;
+  for (const c of physics.constraints) {
+    if (!c || !c.constraint) continue;
+    try {
+      /* 仅弹簧类约束（6DofSpring）有 setEquilibriumPoint/setLimit/setStiffness/setParam；
+         其他类型（Point2Point/ConeTwist/Hinge 等）先检查方法，跳过而非报错 */
+      if (typeof c.constraint.setEquilibriumPoint === 'function') c.constraint.setEquilibriumPoint();
+      const nm = (c.params && c.params.name) || '';
+      /* P2-1：裙摆识别兼容日文(全/半角)/英文，约束名为 Skirt 等也能命中 */
+      const nmLow = nm.toLowerCase();
+      const isSkirt = nm.indexOf('スカート') >= 0 || nmLow.indexOf('skirt') >= 0 || nm.indexOf('ｽｶｰﾄ') >= 0;
+      if (!isSkirt) continue;
+      if (typeof c.constraint.setLimit !== 'function' || typeof c.constraint.setStiffness !== 'function') {
+        continue;  /* 非弹簧类约束不适用裙摆修正，直接跳过 */
+      }
+      const p = c.params;
+        if (p.rotationLimitation1 && p.rotationLimitation2) {
+          for (let a = 0; a < 3; a++) {
+            c.constraint.setLimit(3 + a, p.rotationLimitation1[a] * MMD_PARAMS.limitMul, p.rotationLimitation2[a] * MMD_PARAMS.limitMul);
+          }
+        }
+        if (p.springRotation) {
+          for (let a = 0; a < 3; a++) {
+            if (p.springRotation[a] !== 0) {
+              c.constraint.setStiffness(3 + a, Math.min(p.springRotation[a], MMD_PARAMS.spring));
+            }
+          }
+        }
+        if (p.springPosition) {
+          for (let a = 0; a < 3; a++) {
+            if (p.springPosition[a] !== 0) {
+              c.constraint.setStiffness(a, Math.min(p.springPosition[a], MMD_PARAMS.spring));
+            }
+          }
+        }
+        for (let a = 0; a < 6; a++) c.constraint.setParam(2, MMD_PARAMS.stopErp, a);
+        skirtN++;
+    } catch (e) {
+      /* P2-2：单条约束失败不再静默——控制台详细 + 页面提示一次 */
+      console.warn('[SkirtFix] 约束修正失败:', e);
+      if (!skirtErrShown) {
+        skirtErrShown = true;
+        appendLine({ t: '部分约束修正失败（详见控制台）', c: 'warn' });
+      }
+    }
+  }
+  return skirtN;
+}
+
+/* 卡片层级：后点击/展开者置顶（z-index 30），其余回落 20；日志固定底层不参与 */
+function raiseCardTop(el) {
+  document.querySelectorAll('#hud, #phys-panel').forEach(c => {
+    c.style.zIndex = (c === el) ? 30 : 20;
+  });
+}
+
+/* 面板：最小化切换 + 事件绑定 */
+function togglePhysPanel() {
+  const el = document.getElementById('phys-panel');
+  const tg = el.querySelector('.pp-toggle');
+  el.classList.toggle('min');
+  raiseCardTop(el);  /* 点击即置顶 */
+  tg.innerHTML = el.classList.contains('min')
+    ? '<i class="material-icons">expand_more</i>'
+    : '<i class="material-icons">expand_less</i>';
+}
+function initPhysPanel() {
+  const panel = document.getElementById('phys-panel');
+  if (panel) panel.querySelector('.pp-head').addEventListener('click', togglePhysPanel);
+  const map = {
+    'pp-cf': 'cf', 'pp-w': 'wMax', 'pp-sm': 'smooth',
+    'pp-g': 'gravity', 'pp-sp': 'spring', 'pp-lm': 'limitMul', 'pp-erp': 'stopErp'
+  };
+  for (const id in map) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const key = map[id];
+    el.value = MMD_PARAMS[key];
+    updateSliderFill(el);
+    el.nextElementSibling.textContent = el.value;
+    el.addEventListener('input', () => {
+      const v = parseFloat(el.value);
+      MMD_PARAMS[key] = v;
+      updateSliderFill(el);
+      el.nextElementSibling.textContent = el.value;
+      if (key === 'gravity') {
+        applyGravity();
+      } else if (key === 'spring' || key === 'limitMul' || key === 'stopErp') {
+        const n = applySkirtFixes();
+        appendLine({ t: '[ PHYS ] 裙摆参数更新 (' + n + ' 条) ...', c: 'dim' });
+      }
+    });
+  }
+}
+let idleBone = null; /* 待机摇摆驱动骨骼（センター/上半身） */
+
+/* 滑块 active 轨道填充比例（Material 2 样式，WebKit 用渐变） */
+function updateSliderFill(el) {
+  const min = parseFloat(el.min || 0), max = parseFloat(el.max || 100);
+  const v = parseFloat(el.value || 0);
+  const pct = max > min ? Math.max(0, Math.min(100, (v - min) / (max - min) * 100)) : 0;
+  el.style.setProperty('--fill', pct + '%');
+}
+const texManager = new THREE.LoadingManager();
+texManager.setURLModifier((url) => url.replace(/\\/g, '/'));
+const loader = new MMDLoader(texManager);
+
+let modelLabel = 'White.pmx';  /* 当前模型名（日志用） */
+let homeCam = null;            /* 模型加载后的初始视角（复位按钮用） */
+
+/* 释放旧模型 GPU 资源（切换模型时必须，防止内存累积） */
+function disposeModel(mesh) {
+  mesh.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) {
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      ms.forEach(m => {
+        for (const k in m) if (m[k] && m[k].isTexture) m[k].dispose();
+        m.dispose();
+      });
+    }
+  });
+}
+
+function onModelLoaded(mesh) {
+  /* 替换模型：先清理旧模型 + 旧物理，防止叠加与内存累积 */
+  if (physics) {
+    /* MMDPhysics(r160) 无 dispose 方法——手动释放 Ammo 资源（每步 try/catch 兜底） */
+    try {
+      const world = physics.world;
+      if (world) {
+        if (physics.bodies) for (const b of physics.bodies) {
+          if (b && b.body) { try { world.removeRigidBody(b.body); Ammo.destroy(b.body); } catch (e) {} }
+        }
+        if (physics.constraints) for (const c of physics.constraints) {
+          if (c && c.constraint) { try { world.removeConstraint(c.constraint); Ammo.destroy(c.constraint); } catch (e) {} }
+        }
+        try { Ammo.destroy(world); } catch (e) {}
+      }
+    } catch (e) {
+      console.warn('物理释放失败:', e);
+    }
+    physics = null;
+  }
+  if (mmdMesh) {
+    group.remove(mmdMesh);
+    disposeModel(mmdMesh);
+    mmdMesh = null;
+  }
+
+  /* 居中 + 脚底落地。模型不再缩放（mesh.scale 恒为 1，物理才稳定），改为相机/装饰适配 */
+  const box = new THREE.Box3().setFromObject(mesh);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const targetH = 7;
+  const s = (size.y > 0) ? targetH / size.y : 1;  /* 仅用于装饰元素等比缩放 */
+
+  mesh.position.x = -center.x;
+  mesh.position.z = -center.z;
+  mesh.position.y = -box.min.y;
+
+  /* 双面渲染，防止 MMD 朝向翻转导致背面剔除看不见 */
+  mesh.traverse(o => {
+    if (o.isMesh && o.material) {
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      ms.forEach(m => {
+        m.side = THREE.DoubleSide;
+        /* 贴图 colorSpace：sRGB 贴图按线性渲染会明显偏暗，统一校正（浅色主题下尤其明显） */
+        for (const k in m) {
+          if (m[k] && m[k].isTexture) {
+            m[k].colorSpace = THREE.SRGBColorSpace;
+            m[k].needsUpdate = true;
+          }
+        }
+      });
+    }
+  });
+
+  group.add(mesh);
+  mmdMesh = mesh;
+
+  /* 装饰元素（地面网格/环绕线环）按模型高度等比缩放，模型本身保持 scale=1 */
+  if (s > 0 && s !== 1) {
+    grid.scale.setScalar(s);
+    ring.scale.setScalar(s);
+  }
+
+  /* 相机适配：模型不再缩放，改为让相机看整个模型 */
+  const viewDist = size.y * 1.5 + 4;
+  camera.position.set(0, size.y * 0.6, viewDist);   /* x=0：正对模型正面 */
+  camera.far = Math.max(camera.far, viewDist * 3);
+  camera.updateProjectionMatrix();
+  controls.target.set(0, size.y * 0.5, 0);
+  /* P3-4：新 min/max 边界确保包含当前相机距离，避免 update() 瞬间 clamp 造成变焦突变 */
+  const curDist = camera.position.distanceTo(controls.target);
+  controls.maxDistance = Math.max(viewDist * 2.5, curDist * 1.5);
+  controls.minDistance = Math.min(viewDist * 0.3, curDist * 0.6);
+  controls.update();
+  /* 记录复位视角（复位按钮用；物理参数不重置） */
+  homeCam = { pos: camera.position.clone(), target: controls.target.clone() };
+
+  /* 待机摇摆驱动骨骼：优先根骨骼，其次上半身，兜底取骨骼[0] */
+  if (mesh.skeleton && mesh.skeleton.bones) {
+    const names = ['センター', '全ての親', '上半身'];
+    for (const n of names) {
+      idleBone = mesh.skeleton.bones.find(b => b.name === n);
+      if (idleBone) break;
+    }
+    if (!idleBone && mesh.skeleton.bones.length > 0) {
+      idleBone = mesh.skeleton.bones[0];
+    }
+    if (idleBone) {
+      appendLine({ t: '[ OK ] 待机摇摆骨骼: ' + idleBone.name + ' .......', c: 'ok' });
+    }
+  }
+
+  /* HUD 顶点/面数 */
+  let v = 0, f = 0;
+  mesh.traverse(o => {
+    if (o.isMesh && o.geometry) {
+      const p = o.geometry.getAttribute('position');
+      if (p) v += p.count;
+      f += (o.geometry.index ? o.geometry.index.count : p ? p.count : 0) / 3;
+    }
+  });
+  document.getElementById('hud-v').textContent = v;
+  document.getElementById('hud-f').textContent = Math.round(f);
+
+  /* 物理引擎：刚体 + 关节（Ammo.js），数据从 MMDLoader 解析结果取 */
+  if (typeof Ammo !== 'undefined' && window.AmmoReady) {
+    window.AmmoReady.then(function () {
+    try {
+      const mmdData = (mesh.geometry && mesh.geometry.userData && mesh.geometry.userData.MMD) || {};
+      const rigidBodies = mmdData.rigidBodies || [];
+      const constraints = mmdData.constraints || [];
+      physics = new MMDPhysics(
+        mesh,
+        rigidBodies,
+        constraints,
+        {
+          unitStep: 1 / 65,
+          maxStepNum: 5,        /* 提高子步上限：帧率不稳时模拟更平稳，减少步进误差抖动 */
+          gravity: new THREE.Vector3(0, -30, 0)   /* 与面板默认一致（applyGravity 会立即覆盖） */
+        }
+      );
+      appendLine({ t: '[ OK ] Ammo.js 物理挂载 (' + rigidBodies.length + 'R / ' + constraints.length + 'J) ...', c: 'ok' });
+
+      /* 裙摆物理修正（参数面板可调，见 applySkirtFixes） */
+      applyGravity();
+      const skirtN = applySkirtFixes();
+      appendLine({ t: '[ OK ] 物理修正: 平衡点 x' + physics.constraints.length + ' / 裙摆约束放宽 x' + skirtN + ' ...', c: 'ok' });
+
+      /* 抑制呆毛/裙摆高频抖动：动态刚体加线性/角阻尼（弹簧系统无阻尼会振荡） */
+      if (physics && physics.bodies) {
+        let dampN = 0;
+        for (const b of physics.bodies) {
+          if (!b || !b.body || !b.params) continue;
+          const tp = b.params.type;
+          if (tp === 1 || tp === 2) {
+            b.body.setDamping(0.3, 0.5);   /* 收敛微小抽搐：线性/角阻尼加大 */
+            dampN++;
+          }
+        }
+        appendLine({ t: '[ OK ] 刚体阻尼: ' + dampN + ' 个动态刚体 ...', c: 'ok' });
+      }
+    } catch (e) {
+      console.error(e);
+      appendLine({ t: '[ERR] 物理引擎初始化失败: ' + e.message, c: 'err' });
+    }
+    });
+  } else {
+    appendLine({ t: '[WARN] Ammo.js 未加载，物理已禁用 ...', c: 'warn' });
+  }
+
+  appendLine({ t: '[ OK ] ' + modelLabel + ' 加载完成，模型已居中 ........', c: 'ok' });
+  /* 面板高亮当前模型 */
+  modelList.querySelectorAll('.mp-item').forEach(b => b.classList.toggle('current', b.dataset.id === currentId));
+  /* AppBar 显示当前模型名 */
+  const abModel = document.getElementById('ab-model');
+  if (abModel) abModel.textContent = modelLabel;
+}
+
+/* 直接加载默认白模（拆分后状态） */
+/* ---------- 模型选择加载（T-1：manifest 清单 + MMDLoader.load 官方路径） ---------- */
+const modelPanel = document.getElementById('model-panel');
+const modelList = document.getElementById('model-list');
+let currentId = null;
+
+function showModelPanel() {
+  modelPanel.classList.toggle('show');
+}
+
+/* 加载清单模型：直接走 MMDLoader.load（与白模同一验证路径，纹理目录由 extractUrlBase 自动解析） */
+function loadServerModel(m) {
+  modelPanel.classList.remove('show');
+  appendLine({ t: '加载模型: ' + m.name, c: 'dim' });
+  modelLabel = m.name;
+  currentId = m.id;
+  loader.load(m.file, onModelLoaded, function () {}, function (err) {
+    console.error(err);
+    appendLine({ t: '模型加载失败: ' + err, c: 'err' });
+  });
+}
+
+/* 读取 manifest.json 渲染模型列表；默认加载 White 白模 */
+async function initModels() {
+  try {
+    const res = await fetch('manifest.json');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    modelList.innerHTML = '';
+    for (const m of data.models || []) {
+      const btn = document.createElement('button');
+      btn.className = 'mp-item';
+      btn.dataset.id = m.id;
+      btn.innerHTML = m.name + (m.note ? '<span class="mp-note">' + m.note + '</span>' : '');
+      btn.addEventListener('click', () => loadServerModel(m));
+      modelList.appendChild(btn);
+    }
+    const def = (data.models || []).find(m => m.id === 'white') || (data.models || [])[0];
+    if (def) loadServerModel(def);
+  } catch (e) {
+    console.error(e);
+    appendLine({ t: '模型清单加载失败: ' + e.message, c: 'err' });
+    loader.load('models/Sour式初音ミク/White.pmx', onModelLoaded, function () {}, function (err) {
+      console.error(err);
+      appendLine({ t: '模型加载失败: ' + err, c: 'err' });
+    });
+  }
+}
+
+/* MODELS 按钮（PHYS 头部，不触发折叠）+ 面板关闭 */
+const ppModels = document.querySelector('.pp-models');
+if (ppModels) ppModels.addEventListener('click', e => {
+  e.stopPropagation();
+  showModelPanel();
+});
+const mpClose = document.querySelector('.mp-close');
+if (mpClose) mpClose.addEventListener('click', () => modelPanel.classList.remove('show'));
+document.addEventListener('click', e => {
+  if (modelPanel.classList.contains('show') && !modelPanel.contains(e.target) && !e.target.closest('.pp-models')) {
+    modelPanel.classList.remove('show');
+  }
+});
+
+/* 启动：读取清单并加载默认模型 */
+initModels();
+
+
+/* ---------- 交互：OrbitControls（阻尼惯性 + 自动旋转） ---------- */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 3.5, 0);
+controls.enableDamping = true;        /* 拖拽松手后惯性滑行，视角更顺滑 */
+controls.dampingFactor = 0.08;
+controls.minDistance = 5;             /* 缩放范围限制 */
+controls.maxDistance = 30;
+controls.maxPolarAngle = Math.PI * 0.55;  /* 俯仰限制，避免翻到地面以下 */
+controls.autoRotate = true;           /* 默认开启自动旋转（PHYS 开关控制） */
+controls.autoRotateSpeed = 1.2;
+controls.update();
+
+/* ---------- 动画循环 ---------- */
+const clock = new THREE.Clock();
+const fpsEl = document.getElementById('fps');
+let frames = 0, lastT = 0;  /* P3-6：lastT=0 表示未初始化，首帧再启动计时（不含初始化耗时） */
+let lastAz = 0;      /* 上一帧相机方位角（离心力用） */
+let lastOmega = 0;   /* 平滑后的角速度 */
+let _cfVec = null;   /* Ammo 力向量（惰性创建） */
+let _cfForce = null; /* 每刚体上一帧离心力（WeakMap 平滑用，随刚体 GC 不泄漏） */
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (!lastT) lastT = performance.now();  /* P3-6：计时起点 = 第一帧 */
+  const dt = clock.getDelta();
+  const t = clock.elapsedTime;
+
+  /* 物理先步进：用上一帧骨骼姿态驱动 type0 刚体，裙摆/呆毛经约束传播摆动 */
+  if (physics) physics.update(dt);
+
+  /* 待机摇摆：放在物理之后设置，避免被 MMDPhysics._updateBones 回写覆盖导致抖动（P3-3） */
+  if (idleBone) {
+    idleBone.rotation.x = Math.sin(t * 0.6) * 0.015;
+    idleBone.rotation.z = Math.sin(t * 0.9 + 0.7) * 0.012;
+    idleBone.rotation.y = Math.sin(t * 0.4) * 0.018;
+  }
+  if (mmdMesh) mmdMesh.updateMatrixWorld(true);
+
+  /* 离心力：相机旋转（自动环绕/拖拽）时，给裙摆/头发等动态刚体施加水平离心力 → 甩出惯性 */
+  if (physics && physics.bodies && typeof Ammo !== 'undefined') {
+    const az = controls.getAzimuthalAngle();
+    /* P1-2 修复：方位角范围 (-π, π]，跨边界时差值先 wrap，防止离心力反向爆冲 */
+    let dAz = az - lastAz;
+    if (dAz > Math.PI) dAz -= Math.PI * 2;
+    if (dAz < -Math.PI) dAz += Math.PI * 2;
+    const inst = dAz / Math.max(dt, 1e-4);
+    lastAz = az;
+    const omega = lastOmega + (inst - lastOmega) * MMD_PARAMS.smooth;  /* 平滑角速度 */
+    lastOmega = omega;
+    if (Math.abs(omega) > 0.05) {
+      const w = Math.max(-MMD_PARAMS.wMax, Math.min(MMD_PARAMS.wMax, omega));
+      const k = w * w * MMD_PARAMS.cf;
+      if (!_cfVec) _cfVec = new Ammo.btVector3(0, 0, 0);
+      if (!_cfForce) _cfForce = new WeakMap();
+      for (const b of physics.bodies) {
+        if (!b || !b.body || !b.params) continue;
+        const tp = b.params.type;
+        if (tp !== 1 && tp !== 2) continue;   /* 跳过 type0（骨骼驱动静态刚体） */
+        const o = b.body.getWorldTransform().getOrigin();
+        const px = o.x(), pz = o.z();
+        const rr = Math.sqrt(px * px + pz * pz);
+        if (rr < 1e-6) continue;
+        /* 抽搐修复：① 离心力按质量归一（F=m·ω²r），小质量发尾刚体不再被 60 力猛推振荡；
+           ② 上限 60→30；③ 每刚体力 lerp 平滑，抑制抖动 */
+        const mass = b.body.getMass ? Math.max(b.body.getMass(), 0.05) : 1;
+        const fRaw = Math.min(mass * k * rr, 30);
+        const prev = _cfForce.get(b.body) || 0;
+        const f = prev + (fRaw - prev) * 0.25;
+        _cfForce.set(b.body, f);
+        _cfVec.setValue(px / rr * f, 0, pz / rr * f);
+        b.body.applyCentralForce(_cfVec);
+      }
+    }
+  }
+
+  /* 轨道控制器：阻尼 + 自动旋转 */
+  controls.update();
+
+  /* 装饰环动画（原位旋转） */
+  ring.rotation.y = t * 0.15;
+  ring.rotation.x = Math.sin(t * 0.4) * 0.15;
+
+  renderer.render(scene, camera);
+
+  frames++;
+  const now = performance.now();
+  if (now - lastT >= 500) {
+    fpsEl.textContent = Math.round(frames * 1000 / (now - lastT));
+    frames = 0; lastT = now;
+  }
+}
+/* 自动旋转开关（默认关；开启后模型自动环绕） */
+const swRotate = document.getElementById('sw-rotate');
+if (swRotate) swRotate.addEventListener('click', () => {
+  const on = swRotate.classList.toggle('on');
+  swRotate.setAttribute('aria-checked', on);
+  controls.autoRotate = on;
+});
+
+/* 复位视角按钮（右下角）：恢复模型加载后的相机位置/目标，不动物理参数 */
+const btnReset = document.getElementById('btn-reset');
+if (btnReset) btnReset.addEventListener('click', () => {
+  if (!homeCam) return;
+  camera.position.copy(homeCam.pos);
+  controls.target.copy(homeCam.target);
+  controls.update();
+  appendLine({ t: '视角已复位', c: 'ok' });
+});
+
+/* 日志卡：点击头部展开/收起（默认展开） */
+const logCard = document.getElementById('log');
+if (logCard) {
+  const logTg = logCard.querySelector('.log-toggle');
+  logCard.querySelector('.log-head').addEventListener('click', () => {
+    logCard.classList.toggle('min');
+    logTg.innerHTML = logCard.classList.contains('min')
+      ? '<i class="material-icons">expand_more</i>'
+      : '<i class="material-icons">expand_less</i>';
+  });
+}
+
+/* HUD 详情卡：点击头部展开/收起 */
+const hudEl = document.getElementById('hud');
+if (hudEl) {
+  const hudTg = hudEl.querySelector('.hud-toggle');
+  hudEl.querySelector('.hud-head').addEventListener('click', () => {
+    hudEl.classList.toggle('min');
+    raiseCardTop(hudEl);  /* 点击即置顶 */
+    hudTg.innerHTML = hudEl.classList.contains('min')
+      ? '<i class="material-icons">expand_more</i>'
+      : '<i class="material-icons">expand_less</i>';
+  });
+}
+initPhysPanel();
+animate();
+
+/* P3-2：resize 防抖（rAF 合并）+ 同步 pixelRatio，转屏/缩放窗口不再抖动模糊 */
+let resizeRaf = null;
+window.addEventListener('resize', () => {
+  if (resizeRaf) return;
+  resizeRaf = requestAnimationFrame(() => {
+    resizeRaf = null;
+    const w2 = stage.clientWidth, h2 = stage.clientHeight;
+    camera.aspect = w2 / h2;
+    camera.updateProjectionMatrix();
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(w2, h2);
+  });
+});
+</script>
+</body>
+</html>

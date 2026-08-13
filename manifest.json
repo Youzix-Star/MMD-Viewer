@@ -1,0 +1,28 @@
+{
+  "models": [
+    {
+      "id": "teto",
+      "name": "Kasane Teto SynthV",
+      "file": "models/Kasane Teto SynthV/Kasane Teto SV.pmx",
+      "note": ""
+    },
+    {
+      "id": "teto-tex",
+      "name": "Kasane Teto SynthV · TEX",
+      "file": "models/Kasane Teto SynthV/Kasane Teto SV_TEX.pmx",
+      "note": "独立贴图版"
+    },
+    {
+      "id": "white",
+      "name": "Sour 式初音ミク（White）",
+      "file": "models/Sour式初音ミク/White.pmx",
+      "note": ""
+    },
+    {
+      "id": "sour-black",
+      "name": "Sour 式初音ミク（Black）",
+      "file": "models/Sour式初音ミク/Black.pmx",
+      "note": ""
+    }
+  ]
+}
