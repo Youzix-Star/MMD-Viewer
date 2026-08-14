@@ -2,13 +2,16 @@
 
 移动端 MMD/PMX 模型查看器。Material Design 浅色主题，支持多模型切换与实时物理模拟。基于 Three.js + Ammo.js。
 
+> **物理系统**：three 官方 MMDPhysics + 参数调校（配件微重力 / 裙摆袖口约束松绑 / 微风）。实现与调参说明见 [`PHYSICS.md`](PHYSICS.md)。
+
 ## 快速开始
 
 ```bash
 cd miku
-python3 -m http.server 8000
-# 打开 http://localhost:8000
+python3 -m http.server 8000 --bind 0.0.0.0
 ```
+
+打开 `http://localhost:8000`。手机连同一 Wi-Fi，访问 `http://<电脑局域网IP>:8000`（Windows 用 `ipconfig`、macOS 用 `ifconfig` 查看 IP）。
 
 > 不要用 `file://` 直接打开，浏览器会拦截本地 XHR。
 
@@ -31,6 +34,8 @@ python3 -m http.server 8000
 miku/
 ├── index.html        # 单文件应用
 ├── manifest.json     # 模型清单
+├── PHYSICS.md        # 物理方案与参数说明
+├── vendor/           # 本地化 three 模块（MMDLoader 等）
 ├── source/           # 源项目（陌袹陌提供）
 │   └── console-white-mmd.html
 └── models/           # 模型包（.pmx + 贴图）
@@ -51,7 +56,9 @@ miku/
 
 ---
 
-开发记录见 [CHANGE](CHANGE.md) · 已知问题见 [ISSUES](ISSUES.md)
+## 更新日志
+
+见 [CHANGE.md](CHANGE.md)（含项目演进史、物理 v1→v2→v2.5→v3 完整记录）
 
 > [!CAUTION]
 > 本项目无一行人工代码，自行审查代码安全性

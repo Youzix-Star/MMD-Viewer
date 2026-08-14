@@ -82,29 +82,87 @@
   #hud.min { min-width: 0; }
   #hud.min .hud-body { display: none; }
 
-  /* 自动旋转开关（Material switch 风格） */
-  .switch {
-    width: 34px; height: 18px;
-    border-radius: 999px;
-    background: var(--line);
-    position: relative;
-    cursor: pointer;
-    pointer-events: auto;
-    flex: 0 0 auto;
-    transition: background .15s ease;
+  /* ===== 物理控件样式（Material 风格开关 + 滑块 + 风向罗盘） ===== */
+  .switch { position: relative; display: inline-block; width: 34px; height: 18px; flex: 0 0 auto; margin-left: auto; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider {
+    position: absolute; inset: 0; border-radius: 999px;
+    background: #c3cdd9; transition: background .15s ease; cursor: pointer;
   }
-  .switch::after {
-    content: "";
-    position: absolute; top: 2px; left: 2px;
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+  .switch .slider::before {
+    content: ''; position: absolute; left: 2px; top: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.28);
     transition: transform .15s ease;
   }
-  .switch.on { background: var(--primary); }
-  .switch.on::after { transform: translateX(16px); }
-  #phys-panel .pp-row .switch { margin-left: auto; }
+  .switch input:checked + .slider { background: var(--primary); }
+  .switch input:checked + .slider::before { transform: translateX(16px); }
+  .pp-row .pp-label { display: flex; align-items: center; gap: 6px; color: var(--text); white-space: nowrap; font-size: 11px; }
+  .pp-row .pp-label .material-icons { font-size: 15px; color: var(--primary); }
+  .pp-row .pp-val {
+    color: var(--dim); font-variant-numeric: tabular-nums;
+    min-width: 40px; text-align: right; flex: 0 0 auto; font-size: 11px;
+  }
+  .pp-range {
+    flex: 1; -webkit-appearance: none; appearance: none; height: 3px; border-radius: 2px;
+    background: linear-gradient(to right, var(--primary) var(--fill,50%), #dbe3ec var(--fill,50%));
+    outline: none;
+  }
+  .pp-range::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--primary);
+    box-shadow: 0 1px 2px rgba(15,23,42,.18); cursor: pointer;
+  }
+  .pp-range::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--primary); cursor: pointer;
+  }
+  /* 风向圆盘（可视化罗盘：点击/拖动设定风向） */
+  .pp-dial-row { align-items: center; }
+  .wind-dial {
+    position: relative; width: 92px; height: 92px; flex: 0 0 auto;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #fbfdff, #e9eff6);
+    border: 1px solid var(--line);
+    box-shadow: inset 0 1px 3px rgba(15,23,42,.06);
+    touch-action: none;
+    cursor: pointer;
+    user-select: none;
+  }
+  .wind-dial:active { border-color: var(--primary); }
+  .wind-dial.disabled { opacity: .4; pointer-events: none; }
+  .wind-dial .wd-mark { position: absolute; font-size: 9px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .wind-dial .wd-n { left: 50%; top: 4px; transform: translateX(-50%); }
+  .wind-dial .wd-e { right: 5px; top: 50%; transform: translateY(-50%); }
+  .wind-dial .wd-s { left: 50%; bottom: 4px; transform: translateX(-50%); }
+  .wind-dial .wd-w { left: 5px; top: 50%; transform: translateY(-50%); }
+  .wind-dial .wd-needle {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(0deg);
+    color: var(--primary); pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%;
+  }
+  .wind-dial .wd-needle .material-icons { font-size: 44px; filter: drop-shadow(0 1px 1px rgba(15,23,42,.15)); }
+  .wind-dial .wd-center {
+    position: absolute; left: 50%; top: 50%;
+    width: 10px; height: 10px; margin: -5px 0 0 -5px;
+    border-radius: 50%; background: #fff;
+    border: 2px solid var(--primary); pointer-events: none;
+  }
+  .wd-info { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+  .wd-info b { color: var(--primary); font-size: 15px; font-variant-numeric: tabular-nums; }
+  .wd-info span { color: var(--dim); font-size: 11px; }
+  .pp-reset {
+    height: 28px; width: 100%;
+    background: var(--bg); border: none; border-radius: var(--r-md);
+    color: var(--primary); font-size: 12px; font-family: inherit; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .pp-reset:active { background: var(--surface2); }
+  .pp-btns { gap: 8px; }
+  .pp-btns .pp-reset { width: auto; flex: 1; }
+  .pp-meta { color: var(--dim); font-size: 11px; line-height: 1.6; }
 
   /* ===== 物理参数卡（右上，可折叠） ===== */
   #phys-panel {
@@ -131,7 +189,9 @@
   #phys-panel .pp-toggle .material-icons { font-size: 18px; }
   #phys-panel .pp-models {
     margin-left: 6px;
-    padding: 3px 10px;
+    height: 22px;
+    padding: 0 10px;
+    display: inline-flex; align-items: center;
     border: 1px solid var(--line);
     border-radius: 999px;
     font-size: 10px; letter-spacing: 1px;
@@ -175,52 +235,10 @@
   #model-panel .mp-item:active { background: var(--surface2); }
   #model-panel .mp-item.current { border-color: var(--primary); }
   #model-panel .mp-item .mp-note { display: block; font-size: 10px; color: var(--amber); }
-  #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; max-height: 68vh; overflow-y: auto; overscroll-behavior: contain; }
+  #phys-panel .pp-body::-webkit-scrollbar { width: 4px; }
+  #phys-panel .pp-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
   #phys-panel .pp-row { display: flex; align-items: center; gap: 10px; }
-  #phys-panel .pp-row label { flex: 0 0 62px; font-size: 11px; }
-  /* Material 2 风格滑块（自定义，跨浏览器；--fill 由 JS 更新） */
-  #phys-panel .pp-row input[type=range] {
-    -webkit-appearance: none;
-    appearance: none;
-    flex: 1; min-width: 0;
-    height: 26px;
-    background: transparent;
-    cursor: pointer;
-  }
-  #phys-panel .pp-row input[type=range]::-webkit-slider-runnable-track {
-    height: 4px;
-    border-radius: 2px;
-    background: linear-gradient(to right, var(--primary) var(--fill, 50%), var(--line) var(--fill, 50%));
-  }
-  #phys-panel .pp-row input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 18px; height: 18px;
-    margin-top: -7px;
-    border-radius: 50%;
-    background: #fff;
-    border: 2px solid var(--primary);
-    box-shadow: 0 1px 3px rgba(15,23,42,.2);
-  }
-  #phys-panel .pp-row input[type=range]:active::-webkit-slider-thumb {
-    background: var(--primary);
-    box-shadow: 0 0 0 9px rgba(66,165,245,.18);
-  }
-  #phys-panel .pp-row input[type=range]::-moz-range-track {
-    height: 4px; border-radius: 2px;
-    background: var(--line);
-  }
-  #phys-panel .pp-row input[type=range]::-moz-range-progress {
-    height: 4px; border-radius: 2px;
-    background: var(--primary);
-  }
-  #phys-panel .pp-row input[type=range]::-moz-range-thumb {
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: #fff;
-    border: 2px solid var(--primary);
-    box-shadow: 0 1px 3px rgba(15,23,42,.2);
-  }
-  #phys-panel .pp-row output { flex: 0 0 34px; text-align: right; font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; }
   #phys-panel.min { width: auto; }
   #phys-panel.min .pp-body { display: none; }
 
@@ -244,7 +262,12 @@
   }
   #log .log-title { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text); }
   #log .log-title .material-icons { font-size: 15px; color: var(--primary); }
-  #log .log-toggle { color: var(--dim); display: flex; }
+  /* 统一小按钮尺寸（展开/折叠/各卡片头图标）：22×22，图标居中 */
+  #log .log-expand, #log .log-toggle, #hud .hud-toggle, #phys-panel .pp-toggle {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #log .log-toggle { color: var(--dim); }
   #log .log-toggle .material-icons { font-size: 18px; }
   #log .log-body { margin-top: 6px; }
   #log.min .log-body { display: none; }
@@ -255,11 +278,61 @@
   #log .log-item.warn .material-icons { color: var(--amber); }
   #log .log-item.err .material-icons { color: var(--red); }
   #log .log-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #log .log-expand { color: var(--dim); cursor: pointer; border-radius: 6px; margin-left: auto; }
+  #log .log-expand:hover { background: var(--surface2); color: var(--primary); }
+  #log .log-expand .material-icons { font-size: 16px; }
+
+  /* ===== 详细日志弹窗（大展开） ===== */
+  #log-modal {
+    position: fixed; inset: 0; background: rgba(30, 42, 58, .38);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 24px 16px;   /* 居中，四周留间隙（顶部不贴屏） */
+  }
+  #log-modal.hidden { display: none; }
+  .log-modal-card {
+    width: min(780px, 94vw); height: min(580px, 84vh);
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 14px 44px rgba(0, 0, 0, .28);
+    display: flex; flex-direction: column; overflow: hidden;
+    margin-top: 5vh;   /* 居中基础上再下移一点 */
+  }
+  .log-modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--line);
+  }
+  .log-modal-title { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text); }
+  .log-modal-title .material-icons { color: var(--primary); font-size: 18px; }
+  .log-modal-title b { color: var(--dim); font-weight: 500; font-size: 12px; }
+  .log-modal-actions { display: flex; align-items: center; gap: 6px; }
+  /* 弹窗按钮统一高度 26px */
+  .log-modal-actions button {
+    display: flex; align-items: center; gap: 4px;
+    height: 26px; padding: 0 10px;
+    background: var(--bg); border: none; border-radius: 8px;
+    color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  .log-modal-actions button:hover { background: var(--primary); color: #fff; }
+  .log-modal-actions span {
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px;
+    color: var(--dim); cursor: pointer; border-radius: 8px;
+  }
+  .log-modal-actions span:hover { background: var(--surface2); color: #c62828; }
+  .log-modal-actions .material-icons { font-size: 16px; }
+  .log-modal-body {
+    flex: 1; overflow-y: auto; padding: 10px 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px; line-height: 1.7;
+  }
+  .log-modal-body .lm-item { display: flex; gap: 8px; padding: 2px 0; color: var(--dim); white-space: pre-wrap; word-break: break-all; }
+  .log-modal-body .lm-item.ok  { color: #2e7d32; }
+  .log-modal-body .lm-item.warn { color: #e65100; }
+  .log-modal-body .lm-item.err { color: #c62828; font-weight: 600; }
 
   /* ===== 复位视角按钮（右下角，方形卡片同款） ===== */
   #btn-reset {
     position: absolute; right: 16px; bottom: 16px;
-    width: 32px; height: 32px;   /* 边长对齐卡片收起高度 */
+    width: 36px; height: 36px;   /* 正方形：对齐卡片头部实际高度（padding 8×2 + 内容 ≈ 36px） */
     border: 1px solid var(--line);
     border-radius: var(--r-md);
     background: #fff;
@@ -271,7 +344,7 @@
     transition: background .15s ease;
   }
   #btn-reset:active { background: var(--surface2); }
-  #btn-reset .material-icons { font-size: 18px; }
+  #btn-reset .material-icons { font-size: 20px; }
 
   /* ===== 操作提示（已移除） ===== */
 </style>
@@ -305,14 +378,79 @@
         <span class="pp-toggle"><i class="material-icons">expand_more</i></span>
       </div>
       <div class="pp-body">
-        <div class="pp-row"><label>自动旋转</label><span id="sw-rotate" class="switch on" role="switch" aria-checked="true" title="开启后模型自动环绕展示"></span></div>
-        <div class="pp-row"><label>离心力</label><input type="range" id="pp-cf" min="0" max="200" value="0" step="1"><output>0</output></div>
-        <div class="pp-row"><label>角速度上限</label><input type="range" id="pp-w" min="0.5" max="5" value="2.5" step="0.1"><output>2.5</output></div>
-        <div class="pp-row"><label>平滑系数</label><input type="range" id="pp-sm" min="0" max="1" value="0.4" step="0.05"><output>0.40</output></div>
-        <div class="pp-row"><label>重力</label><input type="range" id="pp-g" min="-300" max="0" value="-30" step="1"><output>-30</output></div>
-        <div class="pp-row"><label>裙摆弹簧</label><input type="range" id="pp-sp" min="1" max="200" value="200" step="1"><output>200</output></div>
-        <div class="pp-row"><label>限位倍率</label><input type="range" id="pp-lm" min="1" max="30" value="10" step="1"><output>10</output></div>
-        <div class="pp-row"><label>STOP_ERP</label><input type="range" id="pp-erp" min="0" max="1" value="0.1" step="0.01"><output>0.10</output></div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">swap_calls</i>物理模拟</span>
+          <label class="switch"><input type="checkbox" id="phys-on" checked><span class="slider"></span></label>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">air</i>待机摇摆</span>
+          <label class="switch"><input type="checkbox" id="sway-on"><span class="slider"></span></label>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">navigation</i>微风</span>
+          <label class="switch"><input type="checkbox" id="wind-on"><span class="slider"></span></label>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">autorenew</i>风向自动</span>
+          <label class="switch"><input type="checkbox" id="wind-auto-on" checked><span class="slider"></span></label>
+        </div>
+        <div class="pp-row pp-dial-row">
+          <span class="pp-label"><i class="material-icons">explore</i>风向</span>
+          <div class="wind-dial" id="wind-dial" title="点击/拖动设定风向">
+            <span class="wd-mark wd-n">前</span>
+            <span class="wd-mark wd-e">右</span>
+            <span class="wd-mark wd-s">后</span>
+            <span class="wd-mark wd-w">左</span>
+            <div class="wd-needle" id="wind-needle"><i class="material-icons">navigation</i></div>
+            <div class="wd-center"></div>
+          </div>
+          <div class="wd-info">
+            <b id="wind-angle-v2">0°</b>
+            <span id="wind-dir-text">朝前</span>
+          </div>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">360</i>自动旋转</span>
+          <label class="switch"><input type="checkbox" id="autorotate-on" checked><span class="slider"></span></label>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label">风强</span>
+          <input type="range" class="pp-range" id="wind-power" min="0" max="50" step="1" value="12">
+          <b class="pp-val" id="wind-power-v">12%</b>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label">摇摆幅度</span>
+          <input type="range" class="pp-range" id="sway-amp" min="0" max="0.15" step="0.005" value="0.06">
+          <b class="pp-val" id="sway-amp-v">0.06</b>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label">摇摆速度</span>
+          <input type="range" class="pp-range" id="sway-spd" min="0.2" max="2" step="0.05" value="1">
+          <b class="pp-val" id="sway-spd-v">1.0×</b>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label">重力</span>
+          <input type="range" class="pp-range" id="phys-grav" min="0" max="2" step="0.05" value="1">
+          <b class="pp-val" id="phys-grav-v">100%</b>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label">配件重力</span>
+          <input type="range" class="pp-range" id="soft-grav" min="0" max="1" step="0.05" value="0.15">
+          <b class="pp-val" id="soft-grav-v">15%</b>
+        </div>
+        <div class="pp-row pp-btns">
+          <button class="pp-reset" id="phys-reset"><i class="material-icons">restart_alt</i>重置物理</button>
+          <button class="pp-reset" id="phys-defaults"><i class="material-icons">settings_backup_restore</i>恢复默认</button>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">explore</i>风向标</span>
+          <label class="switch"><input type="checkbox" id="phys-arrow-on" checked><span class="slider"></span></label>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">visibility</i>物理调试</span>
+          <label class="switch"><input type="checkbox" id="phys-debug-on"><span class="slider"></span></label>
+        </div>
+        <div class="pp-meta"><span id="phys-meta">引擎: Ammo.js (Bullet wasm) · 刚体 -- · 约束 --</span><span id="phys-ms"> · 物理 -- ms</span></div>
       </div>
     </div>
     <div id="model-panel">
@@ -322,9 +460,23 @@
     <div id="log">
       <div class="log-head">
         <span class="log-title"><i class="material-icons">terminal</i>日志</span>
+        <span class="log-expand" id="log-expand" title="展开详细日志"><i class="material-icons">open_in_full</i></span>
         <span class="log-toggle"><i class="material-icons">expand_less</i></span>
       </div>
       <div class="log-body" id="log-list"></div>
+    </div>
+    <!-- 详细日志弹窗（大展开） -->
+    <div id="log-modal" class="hidden">
+      <div class="log-modal-card">
+        <div class="log-modal-head">
+          <span class="log-modal-title"><i class="material-icons">terminal</i>详细日志 <b id="log-count"></b></span>
+          <span class="log-modal-actions">
+            <button id="log-copy" title="复制全部日志"><i class="material-icons">content_copy</i>复制</button>
+            <span id="log-close" title="关闭（Esc）"><i class="material-icons">close</i></span>
+          </span>
+        </div>
+        <div class="log-modal-body" id="log-modal-list"></div>
+      </div>
     </div>
     <button id="btn-reset" title="复位视角"><i class="material-icons">restart_alt</i></button>
   </main>
@@ -332,15 +484,6 @@
 <!-- Ammo.js 物理引擎（three r160 custom wasm 版，含 setParam/CFM 支持，异步初始化） -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/ammo.wasm.js"></script>
 <script>
-  /* P1-3：Ammo 未加载时不再抛 ReferenceError 中断脚本（原 Ammo() 直接调用会炸掉整个 script 块） */
-  window.AmmoReady = null;
-  try {
-    if (typeof Ammo === 'function') {
-      window.AmmoReady = Ammo().then(function (AmmoLib) { window.Ammo = AmmoLib; });
-    }
-  } catch (e) {
-    console.error('[Ammo] 初始化失败:', e);
-  }
 
   /* P1-3：全局错误兜底——module import 失败 / CDN 资源失败时显示可见错误条，不再静默黑屏 */
   window.addEventListener('error', function (e) {
@@ -367,7 +510,7 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { MMDLoader } from 'three/addons/loaders/MMDLoader.js';
+import { MMDLoader } from './vendor/MMDLoader.js';  /* v2: 本地版（透传骨骼 flag，见 vendor/MMDLoader.js:656） */
 import { MMDPhysics } from 'three/addons/animation/MMDPhysics.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -375,12 +518,60 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
  * MMD 白模查看器 — Three.js MMDLoader 加载 PMX 模型（manifest.json 多模型）
  * ============================================================ */
 
-/* ---------- 加载日志（Material 列表，最多 4 条） ---------- */
+/* ---------- 加载日志（Material 列表，最多 4 条）+ 详细日志弹窗 ---------- */
 const logEl = document.getElementById('log-list');
+const logArchive = [];   /* 完整日志原文（含 [ OK ] 等前缀，供大弹窗/复制） */
+const logModal = document.getElementById('log-modal');
+const logModalList = document.getElementById('log-modal-list');
+const logCount = document.getElementById('log-count');
+
+function makeLogItem(raw, c) {
+  const d = document.createElement('div');
+  d.className = 'lm-item ' + (c || 'dim');
+  d.textContent = raw;   /* 原文显示（含 [ OK ] 等前缀，便于排查） */
+  return d;
+}
+function renderLogModal() {
+  logModalList.innerHTML = '';
+  for (const it of logArchive) logModalList.appendChild(makeLogItem(it.t, it.c));
+  logModalList.scrollTop = logModalList.scrollHeight;
+  logCount.textContent = '(' + logArchive.length + ' 条)';
+}
+function openLogModal() {
+  logModal.classList.remove('hidden');
+  renderLogModal();
+}
+function closeLogModal() {
+  logModal.classList.add('hidden');
+}
+function copyLogs() {
+  const txt = logArchive.map(it => it.t).join('\n');
+  const done = () => {
+    const btn = document.getElementById('log-copy');
+    const old = btn.innerHTML;
+    btn.innerHTML = '<i class="material-icons">check</i>已复制';
+    setTimeout(() => { btn.innerHTML = old; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done).catch(() => { fallbackCopy(txt); done(); });
+  } else { fallbackCopy(txt); done(); }
+}
+function fallbackCopy(txt) {
+  const ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.style.cssText = 'position:fixed;opacity:0;';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
 function appendLine(line) {
   const c = line.c || 'ok';
+  const raw = String(line.t);
+  logArchive.push({ t: raw, c: c });
   const icon = c === 'err' ? 'error' : c === 'warn' ? 'warning' : c === 'dim' ? 'info' : 'check_circle';
-  const text = String(line.t)
+  const text = raw
     .replace(/^\[ (?:OK|\.\.|WARN|ERR|PHYS) \]\s*/, '')
     .replace(/\s*\.{3,}\s*$/, '');
   const div = document.createElement('div');
@@ -388,7 +579,21 @@ function appendLine(line) {
   div.innerHTML = '<i class="material-icons">' + icon + '</i><span>' + text + '</span>';
   logEl.appendChild(div);
   while (logEl.children.length > 4) logEl.removeChild(logEl.firstChild);
+  /* 弹窗打开时实时追加 */
+  if (!logModal.classList.contains('hidden')) {
+    logModalList.appendChild(makeLogItem(raw, c));
+    logModalList.scrollTop = logModalList.scrollHeight;
+    logCount.textContent = '(' + logArchive.length + ' 条)';
+  }
 }
+
+/* 弹窗交互 */
+document.getElementById('log-expand').addEventListener('click', e => { e.stopPropagation(); openLogModal(); });
+document.getElementById('log-close').addEventListener('click', closeLogModal);
+document.getElementById('log-copy').addEventListener('click', copyLogs);
+logModal.addEventListener('click', e => { if (e.target === logModal) closeLogModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLogModal(); });
+
 appendLine({ t: '初始化 3D 渲染器', c: 'ok' });
 
 /* ---------- 3D 场景 ---------- */
@@ -442,143 +647,289 @@ const ring = new THREE.LineLoop(
 scene.add(ring);
 
 /* ---------- 模型加载 ---------- */
-let physics = null;  /* MMD 物理引擎实例 */
 let mmdMesh = null;  /* 加载后的模型（待机动画用） */
 
-/* ---------- 物理参数（右上角 PHYS 面板可实时调节） ---------- */
-const MMD_PARAMS = {
-  cf: 0,         /* 离心力强度系数（默认关闭，用户按需开启） */
-  wMax: 2.5,     /* 角速度限幅 rad/s */
-  smooth: 0.4,   /* 角速度平滑系数 */
-  gravity: -30,  /* 重力（用户调校默认，缓解裙摆抖动） */
-  spring: 200,   /* 裙摆弹簧刚度上限（用户调校默认） */
-  limitMul: 10,  /* 裙摆旋转限位倍率（×原始） */
-  stopErp: 0.1   /* 限位混合系数 STOP_ERP */
-};
-
-/* 应用重力（面板可调）；_gVec 复用防泄漏（P1-4） */
-let _gVec = null;
-function applyGravity() {
-  if (physics && physics.world && typeof Ammo !== 'undefined') {
-    if (!_gVec) _gVec = new Ammo.btVector3(0, 0, 0);
-    _gVec.setValue(0, MMD_PARAMS.gravity, 0);
-    physics.world.setGravity(_gVec);
-  }
-}
-
-/* 裙摆约束修正（加载后 & 面板变更时均可重应用） */
-let skirtErrShown = false;  /* 约束修正失败只提示一次，避免刷屏 */
-
-function applySkirtFixes() {
-  if (!physics || !physics.constraints) return 0;
-  let skirtN = 0;
-  for (const c of physics.constraints) {
-    if (!c || !c.constraint) continue;
-    try {
-      /* 仅弹簧类约束（6DofSpring）有 setEquilibriumPoint/setLimit/setStiffness/setParam；
-         其他类型（Point2Point/ConeTwist/Hinge 等）先检查方法，跳过而非报错 */
-      if (typeof c.constraint.setEquilibriumPoint === 'function') c.constraint.setEquilibriumPoint();
-      const nm = (c.params && c.params.name) || '';
-      /* P2-1：裙摆识别兼容日文(全/半角)/英文，约束名为 Skirt 等也能命中 */
-      const nmLow = nm.toLowerCase();
-      const isSkirt = nm.indexOf('スカート') >= 0 || nmLow.indexOf('skirt') >= 0 || nm.indexOf('ｽｶｰﾄ') >= 0;
-      if (!isSkirt) continue;
-      if (typeof c.constraint.setLimit !== 'function' || typeof c.constraint.setStiffness !== 'function') {
-        continue;  /* 非弹簧类约束不适用裙摆修正，直接跳过 */
-      }
-      const p = c.params;
-        if (p.rotationLimitation1 && p.rotationLimitation2) {
-          for (let a = 0; a < 3; a++) {
-            c.constraint.setLimit(3 + a, p.rotationLimitation1[a] * MMD_PARAMS.limitMul, p.rotationLimitation2[a] * MMD_PARAMS.limitMul);
-          }
-        }
-        if (p.springRotation) {
-          for (let a = 0; a < 3; a++) {
-            if (p.springRotation[a] !== 0) {
-              c.constraint.setStiffness(3 + a, Math.min(p.springRotation[a], MMD_PARAMS.spring));
-            }
-          }
-        }
-        if (p.springPosition) {
-          for (let a = 0; a < 3; a++) {
-            if (p.springPosition[a] !== 0) {
-              c.constraint.setStiffness(a, Math.min(p.springPosition[a], MMD_PARAMS.spring));
-            }
-          }
-        }
-        for (let a = 0; a < 6; a++) c.constraint.setParam(2, MMD_PARAMS.stopErp, a);
-        skirtN++;
-    } catch (e) {
-      /* P2-2：单条约束失败不再静默——控制台详细 + 页面提示一次 */
-      console.warn('[SkirtFix] 约束修正失败:', e);
-      if (!skirtErrShown) {
-        skirtErrShown = true;
-        appendLine({ t: '部分约束修正失败（详见控制台）', c: 'warn' });
-      }
-    }
-  }
-  return skirtN;
-}
-
-/* 卡片层级：后点击/展开者置顶（z-index 30），其余回落 20；日志固定底层不参与 */
 function raiseCardTop(el) {
   document.querySelectorAll('#hud, #phys-panel').forEach(c => {
     c.style.zIndex = (c === el) ? 30 : 20;
   });
 }
 
-/* 面板：最小化切换 + 事件绑定 */
-function togglePhysPanel() {
-  const el = document.getElementById('phys-panel');
-  const tg = el.querySelector('.pp-toggle');
-  el.classList.toggle('min');
-  raiseCardTop(el);  /* 点击即置顶 */
-  tg.innerHTML = el.classList.contains('min')
-    ? '<i class="material-icons">expand_more</i>'
-    : '<i class="material-icons">expand_less</i>';
-}
-function initPhysPanel() {
-  const panel = document.getElementById('phys-panel');
-  if (panel) panel.querySelector('.pp-head').addEventListener('click', togglePhysPanel);
-  const map = {
-    'pp-cf': 'cf', 'pp-w': 'wMax', 'pp-sm': 'smooth',
-    'pp-g': 'gravity', 'pp-sp': 'spring', 'pp-lm': 'limitMul', 'pp-erp': 'stopErp'
-  };
-  for (const id in map) {
-    const el = document.getElementById(id);
-    if (!el) continue;
-    const key = map[id];
-    el.value = MMD_PARAMS[key];
-    updateSliderFill(el);
-    el.nextElementSibling.textContent = el.value;
-    el.addEventListener('input', () => {
-      const v = parseFloat(el.value);
-      MMD_PARAMS[key] = v;
-      updateSliderFill(el);
-      el.nextElementSibling.textContent = el.value;
-      if (key === 'gravity') {
-        applyGravity();
-      } else if (key === 'spring' || key === 'limitMul' || key === 'stopErp') {
-        const n = applySkirtFixes();
-        appendLine({ t: '[ PHYS ] 裙摆参数更新 (' + n + ' 条) ...', c: 'dim' });
-      }
-    });
-  }
-}
-let idleBone = null; /* 待机摇摆驱动骨骼（センター/上半身） */
-
-/* 滑块 active 轨道填充比例（Material 2 样式，WebKit 用渐变） */
-function updateSliderFill(el) {
-  const min = parseFloat(el.min || 0), max = parseFloat(el.max || 100);
-  const v = parseFloat(el.value || 0);
-  const pct = max > min ? Math.max(0, Math.min(100, (v - min) / (max - min) * 100)) : 0;
-  el.style.setProperty('--fill', pct + '%');
-}
+/* 模型加载器（LoadingManager 统一纹理路径，反斜杠转正斜杠） */
 const texManager = new THREE.LoadingManager();
 texManager.setURLModifier((url) => url.replace(/\\/g, '/'));
 const loader = new MMDLoader(texManager);
 
 let modelLabel = 'White.pmx';  /* 当前模型名（日志用） */
+
+/* PHYS-1：Ammo.js（Bullet wasm）异步初始化 */
+const ammoReady = new Promise((resolve, reject) => {
+  if (typeof Ammo === 'undefined') {
+    reject(new Error('Ammo.js 脚本未加载（CDN 失败?）'));
+    return;
+  }
+  Ammo().then(lib => {
+    Ammo = lib;   /* 全局替换为物理库实例（MMDPhysics 内部直接使用 Ammo.xxx） */
+    appendLine({ t: '[ PHYS ] Ammo.js 就绪（Bullet wasm）', c: 'ok' });
+    resolve();
+  }, reject);
+});
+
+/* 物理参数（PHYS 面板可调；切换模型/复位视角均不重置） */
+const physCfg = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true };
+/* 出厂默认（"恢复默认"按钮用） */
+const PHYS_DEFAULTS = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true };
+let physMs = 0;   /* 物理解算耗时滑动平均（ms/帧），PHYS 面板实时显示 */
+
+/* PHYS-5：参数持久化（localStorage）——刷新页面自动恢复上次设置 */
+const CFG_KEY = 'mmd-phys-cfg-v1';
+function savePhysCfg() {
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(physCfg)); } catch (e) { /* 隐私模式等场景忽略 */ }
+}
+
+let physics = null;      /* 当前模型的 MMDPhysics 实例 */
+let physicsMesh = null;  /* 物理绑定的模型（用于每帧刷骨骼矩阵） */
+let sway = null;         /* 待机摇摆状态（根骨骼/上半身引用 + 基础四元数） */
+let physicsHelper = null; /* 物理调试线框（MMDPhysicsHelper：刚体可视化） */
+
+/* 待机摇摆：旋转根骨骼（センター），让头发/裙子/领带靠物理惯性自然摆动回弹。
+ * 只摇未被动态刚体（PMX 刚体 type 1/2）绑定的骨骼，避免程序摆与物理解算互相打架。
+ * 根骨骼（センター）在任何 MMD 模型上都无刚体，可安全驱动。 */
+function setupSway(mesh, mmd) {
+  const bones = mesh.skeleton.bones;
+  const dynamic = new Set();   /* 被动态刚体绑定的骨骼索引 */
+  for (const rb of mmd.rigidBodies) if (rb.type !== 0) dynamic.add(rb.boneIndex);
+
+  const find = name => bones.findIndex(b => b.name === name);
+  let rootIdx = find('センター');
+  if (rootIdx < 0) rootIdx = 0;   /* 兜底：根骨骼 */
+  sway = {
+    root: bones[rootIdx],
+    rootBase: bones[rootIdx].quaternion.clone(),
+    upper: null,
+    upperBase: null
+  };
+  const upperIdx = find('上半身');
+  if (upperIdx >= 0 && !dynamic.has(upperIdx)) {
+    sway.upper = bones[upperIdx];
+    sway.upperBase = bones[upperIdx].quaternion.clone();
+  }
+}
+
+/* 每帧应用待机摇摆（正弦叠加，幅度/速度面板可调） */
+const _e1 = new THREE.Euler(), _e2 = new THREE.Euler();
+const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+function applySway(t) {
+  if (!sway) return;
+  const a = physCfg.amp;
+  const w = Math.PI * 2 * physCfg.speed;
+  /* 根骨骼：主体绕 Y 轴左右摆动（双脚基本原地），叠加极小的前后/侧倾，显得"活" */
+  _e1.set(
+    Math.sin(t * w * 0.7 + 1.2) * a * 0.25,
+    Math.sin(t * w) * a,
+    Math.sin(t * w * 0.53 + 2.1) * a * 0.2
+  );
+  _q1.setFromEuler(_e1);
+  sway.root.quaternion.copy(sway.rootBase).multiply(_q1);
+  /* 上半身：与根摆动反相、幅度减半，腰部以上扭转更自然（头发/领带反应更明显） */
+  if (sway.upper) {
+    _e2.set(
+      Math.sin(t * w * 0.8 + 0.6) * a * 0.12,
+      -Math.sin(t * w + 0.9) * a * 0.5,
+      Math.sin(t * w * 0.61 + 0.3) * a * 0.15
+    );
+    _q2.setFromEuler(_e2);
+    sway.upper.quaternion.copy(sway.upperBase).multiply(_q2);
+  }
+}
+
+/* 微风模拟：方向缓慢扫动 + 阵风强度波动（多正弦叠加，无重复感）。
+ * 关闭"风向自动"后，风向固定为面板滑块指定的角度（0°=+Z，顺时针）。
+ * 通过 Ammo 的 applyCentralForce 对软配件动态刚体施力（力 ∝ 质量，加速度一致）。
+ * 风力只作用于头发/领带——裙子/袖子不受风推力（防裙摆被吹起走光），
+ * 它们的摆动来自约束松绑后的惯性；type 0（骨骼跟随/固定件）不参与。 */
+let _windV = null;   /* Ammo 就绪后惰性创建（模块加载时 Ammo 可能尚未就绪） */
+let windAngleNow = 0; /* 当前实际风向（度），供圆盘指针/3D 箭头显示 */
+
+/* 当前风向角（弧度）：自动=扫动公式，手动=面板设定；物理施力与 3D 箭头共用 */
+function getWindAngle(t) {
+  return physCfg.windAuto
+    ? t * 0.25 + Math.sin(t * 0.11) * 1.5 + Math.sin(t * 0.37) * 0.6   /* 自动：方向缓慢扫动 */
+    : physCfg.windAngle * Math.PI / 180;                                /* 手动：固定朝向 */
+}
+
+function applyWind(t) {
+  if (!physics) return;
+  if (!_windV) _windV = new Ammo.btVector3(0, 0, 0);
+  const ang = getWindAngle(t);
+  windAngleNow = ang * 180 / Math.PI;
+  const gust = 0.7 + 0.3 * Math.sin(t * 0.9) * Math.sin(t * 0.31);      /* 阵风波动（只影响强度） */
+  const f = 98 * physCfg.wind * gust;   /* 98 = MMD 重力加速度（与重力同量纲） */
+  const fx = Math.sin(ang) * f, fz = Math.cos(ang) * f;   /* 0°=朝 +Z（观众方向），90°=朝 +X */
+  for (const b of physics.bodies) {
+    if (b.params.type === 0) continue;                       /* kinematic / 固定件不受力 */
+    if (!/髮|髪|ネクタイ/.test(b.params.name)) continue;     /* 只吹头发/领带（裙子/袖子豁免，防走光） */
+    _windV.setValue(fx * b.params.weight, 0, fz * b.params.weight);
+    b.body.applyCentralForce(_windV);
+  }
+}
+
+/* 释放物理资源（切换模型时必须）：从世界移除约束/刚体并销毁 Ammo 对象，防止内存累积
+ * 注：three 分发的 ammo.wasm.js 为精简构建（无 getCollisionObjectArray），
+ *     因此直接遍历 MMDPhysics 内部维护的 bodies/constraints 数组释放。 */
+function disposePhysics() {
+  if (physicsHelper) {   /* 调试线框随物理一起释放 */
+    scene.remove(physicsHelper);
+    physicsHelper.dispose();   /* 官方自带：释放线框几何与材质 */
+    physicsHelper = null;
+  }
+  if (!physics) { physicsMesh = null; sway = null; return; }
+  const world = physics.world;
+  if (world && Ammo) {
+    for (const c of physics.constraints) {
+      if (c.constraint) { world.removeConstraint(c.constraint); Ammo.destroy(c.constraint); }
+    }
+    for (const b of physics.bodies) {
+      if (!b.body) continue;
+      world.removeRigidBody(b.body);
+      const shape = b.body.getCollisionShape();
+      if (shape) Ammo.destroy(shape);
+      const ms = b.body.getMotionState();
+      if (ms) Ammo.destroy(ms);
+      Ammo.destroy(b.body);
+    }
+    Ammo.destroy(world);
+  }
+  physics = null; physicsMesh = null; sway = null;
+}
+
+/* 物理参数调校（创建后、warmup 前调用；滑块实时调整也走这里）：
+ * 1. 配件重力：Sour 式初音等模型的头发/领带刚体质量很大（mass 8.68 vs 裙子 0.1~1），
+ *    在 Bullet 里重力矩远超 PMX 弹簧刚度，静止时整条链被拉离初始姿态（实测末端偏移
+ *    达 4 单位，卷曲的双马尾被"甩直"，观感就是"头发被拉得特别长"）。
+ *    对策：对头发/领带刚体单独降低重力（默认 20%→15%），既保持自然摆动回弹，又不再下垂变形。
+ * 2. 裙摆/袖口灵动化：部分模型（如 Sour 式初音）的裙子约束被作者"焊死"——旋转限制仅 ±0.02 rad
+ *    （1.1°）且带位置弹簧 100，物理上就是钢板，风吹不动。对策：
+ *    a. 放大裙子约束旋转限制（×4）、削弱旋转弹簧（×0.25）、位置弹簧（×0.1）；
+ *       袖子约束同理松绑（×3 / ×0.5 / ×0.5，其原限制 ±0.09 本就比裙子宽）；
+ *    b. 裙子刚体微重力（30%），让裙摆随身体运动惯性自然摆动；
+ *    c. 风只吹头发/领带——裙子/袖子不受风推力（防裙摆被吹起走光），
+ *       它们的灵动只来自约束松绑后的惯性摆动。
+ *    实测 Miku 裙摆风吹偏移 0.06 → 1.18，Teto 0.24 → 2.79，无 NaN、无风不塌。 */
+const SKIRT_R_LIMIT_MUL = 4, SKIRT_SPRING_R_MUL = 0.25, SKIRT_SPRING_P_MUL = 0.1;
+const SLEEVE_R_LIMIT_MUL = 3, SLEEVE_SPRING_R_MUL = 0.5, SLEEVE_SPRING_P_MUL = 0.5;
+const SKIRT_GRAV = 0.3;   /* 裙子微重力系数 */
+
+/* 松绑裙子/袖子约束（幂等：只对 スカート/袖 约束，不碰头发/领带/身体） */
+function loosenSoftParts(p) {
+  const v1 = new Ammo.btVector3(0, 0, 0), v2 = new Ammo.btVector3(0, 0, 0);
+  for (const cc of p.constraints) {
+    if (!cc.constraint) continue;
+    const c = cc.constraint;
+    const isSkirt = /スカート/.test(cc.params.name);
+    const isSleeve = /袖/.test(cc.params.name);
+    if (!isSkirt && !isSleeve) continue;
+    const rMul = isSkirt ? SKIRT_R_LIMIT_MUL : SLEEVE_R_LIMIT_MUL;
+    const srMul = isSkirt ? SKIRT_SPRING_R_MUL : SLEEVE_SPRING_R_MUL;
+    const spMul = isSkirt ? SKIRT_SPRING_P_MUL : SLEEVE_SPRING_P_MUL;
+    v1.setValue(cc.params.rotationLimitation1[0] * rMul,
+                cc.params.rotationLimitation1[1] * rMul,
+                cc.params.rotationLimitation1[2] * rMul);
+    v2.setValue(cc.params.rotationLimitation2[0] * rMul,
+                cc.params.rotationLimitation2[1] * rMul,
+                cc.params.rotationLimitation2[2] * rMul);
+    c.setAngularLowerLimit(v1);
+    c.setAngularUpperLimit(v2);
+    for (let i = 0; i < 3; i++) {
+      if (cc.params.springPosition[i] !== 0) c.setStiffness(i, cc.params.springPosition[i] * spMul);
+      if (cc.params.springRotation[i] !== 0) c.setStiffness(i + 3, cc.params.springRotation[i] * srMul);
+    }
+  }
+  Ammo.destroy(v1);
+  Ammo.destroy(v2);
+}
+
+function applyPhysTuning(p) {
+  if (!p) return;
+  loosenSoftParts(p);   /* 裙摆/袖口灵动化（每次调用幂等：按原始参数重新缩放） */
+  const gSoft = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity * physCfg.softGrav, 0);
+  const gSkirt = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity * SKIRT_GRAV, 0);
+  const gFull = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity, 0);
+  for (const b of p.bodies) {
+    const name = b.params.name;
+    const isSoft = /髮|髪|ネクタイ/.test(name);   /* 头发+领带（面板"配件重力"滑块控制） */
+    const isSkirt = /スカート/.test(name);
+    b.body.setGravity(isSkirt ? gSkirt : (isSoft ? gSoft : gFull));
+  }
+  Ammo.destroy(gSoft);
+  Ammo.destroy(gSkirt);
+  Ammo.destroy(gFull);
+}
+function setupPhysics(mesh) {
+  disposePhysics();   /* 先释放旧模型物理（若 ammo 未就绪，此处为无操作） */
+  const mmd = mesh.geometry.userData.MMD;
+  if (!mmd || !mmd.rigidBodies || mmd.rigidBodies.length === 0) {
+    appendLine({ t: '[ PHYS ] 该模型无刚体数据，物理已跳过', c: 'warn' });
+    updatePhysMeta(null);
+    return;
+  }
+  ammoReady.then(() => {
+    if (mmdMesh !== mesh) return;   /* 等待 ammo 期间用户已切换模型 */
+    try {
+      physics = new MMDPhysics(mesh, mmd.rigidBodies, mmd.constraints, {
+        unitStep: 1 / 65,        /* 官方默认：1/65 比 1/60 更不易抖 */
+        maxStepNum: 3,           /* 掉帧时最多 3 个子步，控制手机端开销 */
+        gravity: new THREE.Vector3(0, -9.8 * 10 * physCfg.gravity, 0)  /* MMD 单位制（1单位=10cm） */
+      });
+      applyPhysTuning(physics);  /* 配件重力/裙摆袖口松绑（warmup 前，让落定阶段就是调校后的状态） */
+      physics.warmup(60);        /* 预演约 1s：让裙摆/头发落定，避免开场瞬间"炸开" */
+      physicsMesh = mesh;
+      setupSway(mesh, mmd);
+      /* 物理调试线框（官方 createHelper：红=骨骼跟随 type0，绿=动态 type1，蓝=物理+位置跟随 type2）。
+       * visible 跟随面板开关，关闭时 updateMatrixWorld 直接跳过，零开销。 */
+      physicsHelper = physics.createHelper();
+      physicsHelper.visible = physCfg.debug;
+      scene.add(physicsHelper);
+      appendLine({ t: '[ PHYS ] 物理就绪 · 刚体 ' + mmd.rigidBodies.length + ' · 约束 ' + mmd.constraints.length, c: 'ok' });
+      updatePhysMeta(mmd);
+    } catch (e) {
+      console.error(e);
+      appendLine({ t: '[ PHYS ] 物理初始化失败: ' + e.message, c: 'err' });
+      updatePhysMeta(null);
+    }
+  }).catch(() => {
+    appendLine({ t: '[ PHYS ] Ammo.js 加载失败，物理不可用（不影响模型显示）', c: 'err' });
+    updatePhysMeta(null);
+  });
+}
+
+function updatePhysMeta(mmd) {
+  document.getElementById('phys-meta').textContent = mmd
+    ? '引擎: Ammo.js (Bullet wasm) · 刚体 ' + mmd.rigidBodies.length + ' · 约束 ' + mmd.constraints.length
+    : '引擎: Ammo.js (Bullet wasm) · 当前模型无物理数据';
+}
+
+/* 3D 风向箭头（仅指示，不参与物理）：实时指向当前风向设置/扫动方向。
+ * 位置随模型尺寸更新（onModelLoaded）；风关闭时半透明显示。 */
+const windArrow = new THREE.ArrowHelper(
+  new THREE.Vector3(0, 0, 1),   /* 初始朝 +Z（观众方向） */
+  new THREE.Vector3(0, 0, 0),   /* 原点，位置稍后按模型更新 */
+  2.2,                          /* 杆长 */
+  0xe0704a,                     /* 暖橙色，与模型/线框区分 */
+  0.5, 0.35                     /* 箭头头部 */
+);
+windArrow.line.material.transparent = true;
+windArrow.cone.material.transparent = true;
+function setWindArrowAlpha(a) {
+  windArrow.line.material.opacity = a;
+  windArrow.cone.material.opacity = a;
+}
+setWindArrowAlpha(physCfg.windOn ? 0.85 : 0.25);   /* 风开实色 / 风关半透明指示 */
+windArrow.visible = physCfg.arrow;                  /* 风向标显示开关（PHYS 面板可调） */
+scene.add(windArrow);   /* 挂入场景（曾因重构遗漏导致箭头不可见） */
+let windArrowAnchor = new THREE.Vector3(0, 1.5, 0);   /* 箭头中心锚点（模型正上方），position 每帧按风向偏移半长 */
+
+
 let homeCam = null;            /* 模型加载后的初始视角（复位按钮用） */
 
 /* 释放旧模型 GPU 资源（切换模型时必须，防止内存累积） */
@@ -597,24 +948,6 @@ function disposeModel(mesh) {
 
 function onModelLoaded(mesh) {
   /* 替换模型：先清理旧模型 + 旧物理，防止叠加与内存累积 */
-  if (physics) {
-    /* MMDPhysics(r160) 无 dispose 方法——手动释放 Ammo 资源（每步 try/catch 兜底） */
-    try {
-      const world = physics.world;
-      if (world) {
-        if (physics.bodies) for (const b of physics.bodies) {
-          if (b && b.body) { try { world.removeRigidBody(b.body); Ammo.destroy(b.body); } catch (e) {} }
-        }
-        if (physics.constraints) for (const c of physics.constraints) {
-          if (c && c.constraint) { try { world.removeConstraint(c.constraint); Ammo.destroy(c.constraint); } catch (e) {} }
-        }
-        try { Ammo.destroy(world); } catch (e) {}
-      }
-    } catch (e) {
-      console.warn('物理释放失败:', e);
-    }
-    physics = null;
-  }
   if (mmdMesh) {
     group.remove(mmdMesh);
     disposeModel(mmdMesh);
@@ -631,6 +964,11 @@ function onModelLoaded(mesh) {
   mesh.position.x = -center.x;
   mesh.position.z = -center.z;
   mesh.position.y = -box.min.y;
+
+  /* 风向箭头：锚点 = 模型正上方中心；position 每帧按风向偏移半长（见 animate），
+   * 使箭头两端的中点始终对准锚点，方向变化时绕中心旋转。 */
+  windArrowAnchor.set(0, size.y + 1.5, 0);
+  windArrow.scale.setScalar(size.y / 10);
 
   /* 双面渲染，防止 MMD 朝向翻转导致背面剔除看不见 */
   mesh.traverse(o => {
@@ -672,21 +1010,6 @@ function onModelLoaded(mesh) {
   /* 记录复位视角（复位按钮用；物理参数不重置） */
   homeCam = { pos: camera.position.clone(), target: controls.target.clone() };
 
-  /* 待机摇摆驱动骨骼：优先根骨骼，其次上半身，兜底取骨骼[0] */
-  if (mesh.skeleton && mesh.skeleton.bones) {
-    const names = ['センター', '全ての親', '上半身'];
-    for (const n of names) {
-      idleBone = mesh.skeleton.bones.find(b => b.name === n);
-      if (idleBone) break;
-    }
-    if (!idleBone && mesh.skeleton.bones.length > 0) {
-      idleBone = mesh.skeleton.bones[0];
-    }
-    if (idleBone) {
-      appendLine({ t: '[ OK ] 待机摇摆骨骼: ' + idleBone.name + ' .......', c: 'ok' });
-    }
-  }
-
   /* HUD 顶点/面数 */
   let v = 0, f = 0;
   mesh.traverse(o => {
@@ -699,52 +1022,7 @@ function onModelLoaded(mesh) {
   document.getElementById('hud-v').textContent = v;
   document.getElementById('hud-f').textContent = Math.round(f);
 
-  /* 物理引擎：刚体 + 关节（Ammo.js），数据从 MMDLoader 解析结果取 */
-  if (typeof Ammo !== 'undefined' && window.AmmoReady) {
-    window.AmmoReady.then(function () {
-    try {
-      const mmdData = (mesh.geometry && mesh.geometry.userData && mesh.geometry.userData.MMD) || {};
-      const rigidBodies = mmdData.rigidBodies || [];
-      const constraints = mmdData.constraints || [];
-      physics = new MMDPhysics(
-        mesh,
-        rigidBodies,
-        constraints,
-        {
-          unitStep: 1 / 65,
-          maxStepNum: 5,        /* 提高子步上限：帧率不稳时模拟更平稳，减少步进误差抖动 */
-          gravity: new THREE.Vector3(0, -30, 0)   /* 与面板默认一致（applyGravity 会立即覆盖） */
-        }
-      );
-      appendLine({ t: '[ OK ] Ammo.js 物理挂载 (' + rigidBodies.length + 'R / ' + constraints.length + 'J) ...', c: 'ok' });
-
-      /* 裙摆物理修正（参数面板可调，见 applySkirtFixes） */
-      applyGravity();
-      const skirtN = applySkirtFixes();
-      appendLine({ t: '[ OK ] 物理修正: 平衡点 x' + physics.constraints.length + ' / 裙摆约束放宽 x' + skirtN + ' ...', c: 'ok' });
-
-      /* 抑制呆毛/裙摆高频抖动：动态刚体加线性/角阻尼（弹簧系统无阻尼会振荡） */
-      if (physics && physics.bodies) {
-        let dampN = 0;
-        for (const b of physics.bodies) {
-          if (!b || !b.body || !b.params) continue;
-          const tp = b.params.type;
-          if (tp === 1 || tp === 2) {
-            b.body.setDamping(0.3, 0.5);   /* 收敛微小抽搐：线性/角阻尼加大 */
-            dampN++;
-          }
-        }
-        appendLine({ t: '[ OK ] 刚体阻尼: ' + dampN + ' 个动态刚体 ...', c: 'ok' });
-      }
-    } catch (e) {
-      console.error(e);
-      appendLine({ t: '[ERR] 物理引擎初始化失败: ' + e.message, c: 'err' });
-    }
-    });
-  } else {
-    appendLine({ t: '[WARN] Ammo.js 未加载，物理已禁用 ...', c: 'warn' });
-  }
-
+  setupPhysics(mesh);  /* 物理系统（three 官方 MMDPhysics + 参数调校） */
   appendLine({ t: '[ OK ] ' + modelLabel + ' 加载完成，模型已居中 ........', c: 'ok' });
   /* 面板高亮当前模型 */
   modelList.querySelectorAll('.mp-item').forEach(b => b.classList.toggle('current', b.dataset.id === currentId));
@@ -816,6 +1094,180 @@ document.addEventListener('click', e => {
   }
 });
 
+document.getElementById('phys-on').addEventListener('change', e => {
+  physCfg.enabled = e.target.checked;
+  appendLine({ t: '[ PHYS ] 物理模拟已' + (e.target.checked ? '开启' : '关闭'), c: 'ok' });
+  savePhysCfg();
+});
+document.getElementById('sway-on').addEventListener('change', e => {
+  physCfg.sway = e.target.checked;
+  appendLine({ t: '[ PHYS ] 待机摇摆已' + (e.target.checked ? '开启' : '关闭'), c: 'ok' });
+  savePhysCfg();
+});
+document.getElementById('wind-on').addEventListener('change', e => {
+  physCfg.windOn = e.target.checked;
+  appendLine({ t: '[ PHYS ] 微风已' + (e.target.checked ? '开启' : '关闭'), c: 'ok' });
+  setWindArrowAlpha(e.target.checked ? 0.85 : 0.25);   /* 3D 箭头透明度联动 */
+  savePhysCfg();
+});
+/* 风向自动：开启 = 方向缓慢扫动；关闭 = 手动指定固定风向（圆盘解除禁用） */
+const windDial = document.getElementById('wind-dial');
+const windNeedle = document.getElementById('wind-needle');
+const windAngleText = document.getElementById('wind-angle-v2');
+const windDirText = document.getElementById('wind-dir-text');
+const windAutoOn = document.getElementById('wind-auto-on');
+
+/* 方位文字：0°=前（朝观众 +Z），顺时针 45° 一档 */
+const WIND_DIRS = ['前', '前右', '右', '后右', '后', '后左', '左', '前左'];
+function angleToLabel(deg) {
+  return WIND_DIRS[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+}
+
+/* 更新指针与文字（手动：显示设定角；自动：显示当前扫动方向） */
+function updateWindUI() {
+  const deg = physCfg.windAuto ? windAngleNow : physCfg.windAngle;
+  windNeedle.style.transform = 'translate(-50%, -50%) rotate(' + deg + 'deg)';
+  if (physCfg.windAuto) {
+    windAngleText.textContent = '自动';
+    windDirText.textContent = physCfg.windOn ? '扫动中 · ' + angleToLabel(windAngleNow) : '微风已关闭';
+  } else {
+    windAngleText.textContent = Math.round(physCfg.windAngle) + '°';
+    windDirText.textContent = '朝' + angleToLabel(physCfg.windAngle);
+  }
+}
+
+/* 圆盘交互：指针按下/拖动 → 角度 = 相对圆心的方位角（上=0° 前，顺时针） */
+let windDragging = false;
+function windDialAngle(e) {
+  const r = windDial.getBoundingClientRect();
+  const dx = e.clientX - (r.left + r.width / 2);
+  const dy = e.clientY - (r.top + r.height / 2);
+  return Math.atan2(dx, -dy) * 180 / Math.PI;   /* 屏幕 y 向下，取负转成"上=0° 顺时针" */
+}
+windDial.addEventListener('pointerdown', e => {
+  windDragging = true;
+  windDial.setPointerCapture(e.pointerId);
+  physCfg.windAngle = ((windDialAngle(e) % 360) + 360) % 360;
+  updateWindUI();
+  savePhysCfg();
+});
+windDial.addEventListener('pointermove', e => {
+  if (!windDragging) return;
+  physCfg.windAngle = ((windDialAngle(e) % 360) + 360) % 360;
+  updateWindUI();
+});
+windDial.addEventListener('pointerup', () => { windDragging = false; savePhysCfg(); });
+windDial.addEventListener('pointercancel', () => { windDragging = false; savePhysCfg(); });
+
+windAutoOn.addEventListener('change', e => {
+  physCfg.windAuto = e.target.checked;
+  windDial.classList.toggle('disabled', e.target.checked);   /* 自动时圆盘置灰不可拖 */
+  updateWindUI();
+  appendLine({ t: '[ PHYS ] 风向已切换为' + (e.target.checked ? '自动扫动' : '手动指定'), c: 'ok' });
+  savePhysCfg();
+});
+windDial.classList.toggle('disabled', windAutoOn.checked);   /* 初始状态同步 */
+document.getElementById('autorotate-on').addEventListener('change', e => {
+  physCfg.autoRotate = e.target.checked;
+  controls.autoRotate = e.target.checked;   /* 与顶栏 OrbitControls 的自动旋转联动 */
+  appendLine({ t: '[ PHYS ] 自动旋转已' + (e.target.checked ? '开启' : '关闭'), c: 'ok' });
+  savePhysCfg();
+});
+
+/* 滑块通用绑定：更新进度条填充 + 数值显示 + 写入配置 */
+function bindRange(id, vid, fmt, onInput) {
+  const el = document.getElementById(id);
+  const v = document.getElementById(vid);
+  const upd = () => {
+    el.style.setProperty('--fill', ((el.value - el.min) / (el.max - el.min) * 100) + '%');
+    v.textContent = fmt(el.value);
+    onInput(parseFloat(el.value));
+  };
+  el.addEventListener('input', upd);
+  upd();
+}
+bindRange('sway-amp', 'sway-amp-v', x => Number(x).toFixed(3), x => { physCfg.amp = x; savePhysCfg(); });
+bindRange('sway-spd', 'sway-spd-v', x => Number(x).toFixed(1) + '×', x => { physCfg.speed = x; savePhysCfg(); });
+bindRange('phys-grav', 'phys-grav-v', x => Math.round(x * 100) + '%', x => {
+  physCfg.gravity = x;
+  if (physics) {
+    physics.setGravity(new THREE.Vector3(0, -9.8 * 10 * x, 0));   /* 实时生效 */
+    applyPhysTuning(physics);                                     /* 配件重力同步 */
+  }
+  savePhysCfg();
+});
+bindRange('soft-grav', 'soft-grav-v', x => Math.round(x * 100) + '%', x => {
+  physCfg.softGrav = x;
+  if (physics) applyPhysTuning(physics);   /* 配件重力实时生效 */
+  savePhysCfg();
+});
+bindRange('wind-power', 'wind-power-v', x => x + '%', x => { physCfg.wind = x / 100; savePhysCfg(); });
+
+document.getElementById('phys-reset').addEventListener('click', () => {
+  if (!physics) return;
+  physics.reset();        /* 刚体重新贴合当前骨骼姿态 */
+  physics.warmup(30);     /* 重新落定，消除累积漂移 */
+  appendLine({ t: '[ PHYS ] 物理已重置', c: 'ok' });
+});
+
+/* 风向标（3D 箭头）显示开关 */
+document.getElementById('phys-arrow-on').addEventListener('change', e => {
+  physCfg.arrow = e.target.checked;
+  windArrow.visible = e.target.checked;
+  appendLine({ t: '[ PHYS ] 风向标已' + (e.target.checked ? '显示' : '隐藏'), c: 'ok' });
+  savePhysCfg();
+});
+
+/* 物理调试：显示刚体线框（MMDPhysicsHelper），帮助观察约束/刚体布局 */
+document.getElementById('phys-debug-on').addEventListener('change', e => {
+  physCfg.debug = e.target.checked;
+  if (physicsHelper) physicsHelper.visible = e.target.checked;
+  appendLine({ t: '[ PHYS ] 物理调试线框已' + (e.target.checked ? '开启（红=骨骼跟随 绿=动态 蓝=物理+位置）' : '关闭'), c: 'ok' });
+  savePhysCfg();
+});
+
+/* 滑块设值辅助：赋值并触发 input 事件，复用 bindRange 的显示/填充/写入逻辑 */
+function setRangeVal(id, v) {
+  const el = document.getElementById(id);
+  el.value = v;
+  el.dispatchEvent(new Event('input'));
+}
+
+/* 同步全部控件 UI 到 physCfg（恢复默认/恢复持久化时用；不动物理实例） */
+function syncPhysUI() {
+  document.getElementById('phys-on').checked = physCfg.enabled;
+  document.getElementById('sway-on').checked = physCfg.sway;
+  document.getElementById('wind-on').checked = physCfg.windOn;
+  windAutoOn.checked = physCfg.windAuto;
+  windDial.classList.toggle('disabled', physCfg.windAuto);
+  document.getElementById('autorotate-on').checked = physCfg.autoRotate;
+  document.getElementById('phys-arrow-on').checked = physCfg.arrow;
+  document.getElementById('phys-debug-on').checked = physCfg.debug;
+  setRangeVal('sway-amp', physCfg.amp);
+  setRangeVal('sway-spd', physCfg.speed);
+  setRangeVal('phys-grav', physCfg.gravity);
+  setRangeVal('soft-grav', physCfg.softGrav);
+  setRangeVal('wind-power', physCfg.wind * 100);
+  updateWindUI();
+  setWindArrowAlpha(physCfg.windOn ? 0.85 : 0.25);
+}
+
+/* 恢复默认设置：重置全部参数 + 同步控件 UI + 物理立即生效（无需重建） */
+function resetPhysSettings() {
+  Object.assign(physCfg, PHYS_DEFAULTS);
+  syncPhysUI();
+  if (physics) {
+    physics.setGravity(new THREE.Vector3(0, -9.8 * 10 * physCfg.gravity, 0));
+    applyPhysTuning(physics);
+    physics.reset();          /* 刚体重贴骨骼 */
+    physics.warmup(30);       /* 重新落定 */
+  }
+  if (physicsHelper) physicsHelper.visible = physCfg.debug;
+  controls.autoRotate = physCfg.autoRotate;
+  savePhysCfg();
+  appendLine({ t: '[ PHYS ] 已恢复默认设置', c: 'ok' });
+}
+
 /* 启动：读取清单并加载默认模型 */
 initModels();
 
@@ -828,72 +1280,56 @@ controls.dampingFactor = 0.08;
 controls.minDistance = 5;             /* 缩放范围限制 */
 controls.maxDistance = 30;
 controls.maxPolarAngle = Math.PI * 0.55;  /* 俯仰限制，避免翻到地面以下 */
-controls.autoRotate = true;           /* 默认开启自动旋转（PHYS 开关控制） */
+controls.autoRotate = physCfg.autoRotate;  /* PHYS：应用持久化/默认的自动旋转状态 */
 controls.autoRotateSpeed = 1.2;
 controls.update();
+
+/* PHYS-5b：启动时恢复上次保存的参数（localStorage） */
+try {
+  const saved = JSON.parse(localStorage.getItem(CFG_KEY));
+  if (saved && typeof saved === 'object') {
+    /* 自愈：剔除已不存在的字段（防止旧版本数据残留污染 physCfg） */
+    for (const k of Object.keys(saved)) {
+      if (!(k in physCfg)) delete saved[k];
+    }
+    Object.assign(physCfg, saved);
+    syncPhysUI();
+    appendLine({ t: '[ PHYS ] 已恢复上次参数设置', c: 'ok' });
+  }
+} catch (e) {
+  console.warn('物理参数恢复失败:', e);
+}
 
 /* ---------- 动画循环 ---------- */
 const clock = new THREE.Clock();
 const fpsEl = document.getElementById('fps');
 let frames = 0, lastT = 0;  /* P3-6：lastT=0 表示未初始化，首帧再启动计时（不含初始化耗时） */
-let lastAz = 0;      /* 上一帧相机方位角（离心力用） */
-let lastOmega = 0;   /* 平滑后的角速度 */
-let _cfVec = null;   /* Ammo 力向量（惰性创建） */
-let _cfForce = null; /* 每刚体上一帧离心力（WeakMap 平滑用，随刚体 GC 不泄漏） */
 
 function animate() {
   requestAnimationFrame(animate);
   if (!lastT) lastT = performance.now();  /* P3-6：计时起点 = 第一帧 */
-  const dt = clock.getDelta();
+  const dt = Math.min(clock.getDelta(), 1 / 30);  /* PHYS-3：限幅最大步长，防掉帧/切后台时 Bullet 爆炸 */
   const t = clock.elapsedTime;
 
-  /* 物理先步进：用上一帧骨骼姿态驱动 type0 刚体，裙摆/呆毛经约束传播摆动 */
-  if (physics) physics.update(dt);
-
-  /* 待机摇摆：放在物理之后设置，避免被 MMDPhysics._updateBones 回写覆盖导致抖动（P3-3） */
-  if (idleBone) {
-    idleBone.rotation.x = Math.sin(t * 0.6) * 0.015;
-    idleBone.rotation.z = Math.sin(t * 0.9 + 0.7) * 0.012;
-    idleBone.rotation.y = Math.sin(t * 0.4) * 0.018;
+  /* PHYS-4：物理每帧流程 = 待机摇摆 → 微风施力 → 刷骨骼世界矩阵 → 解算并回写骨骼 */
+  if (physics && physicsMesh && physCfg.enabled) {
+    if (physCfg.sway) applySway(t);
+    if (physCfg.windOn && physCfg.wind > 0) applyWind(t);
+    physicsMesh.updateMatrixWorld(true);
+    const tPhys = performance.now();
+    physics.update(dt);
+    physMs = physMs * 0.9 + (performance.now() - tPhys) * 0.1;   /* 滑动平均 */
+  } else {
+    physMs = 0;
   }
-  if (mmdMesh) mmdMesh.updateMatrixWorld(true);
-
-  /* 离心力：相机旋转（自动环绕/拖拽）时，给裙摆/头发等动态刚体施加水平离心力 → 甩出惯性 */
-  if (physics && physics.bodies && typeof Ammo !== 'undefined') {
-    const az = controls.getAzimuthalAngle();
-    /* P1-2 修复：方位角范围 (-π, π]，跨边界时差值先 wrap，防止离心力反向爆冲 */
-    let dAz = az - lastAz;
-    if (dAz > Math.PI) dAz -= Math.PI * 2;
-    if (dAz < -Math.PI) dAz += Math.PI * 2;
-    const inst = dAz / Math.max(dt, 1e-4);
-    lastAz = az;
-    const omega = lastOmega + (inst - lastOmega) * MMD_PARAMS.smooth;  /* 平滑角速度 */
-    lastOmega = omega;
-    if (Math.abs(omega) > 0.05) {
-      const w = Math.max(-MMD_PARAMS.wMax, Math.min(MMD_PARAMS.wMax, omega));
-      const k = w * w * MMD_PARAMS.cf;
-      if (!_cfVec) _cfVec = new Ammo.btVector3(0, 0, 0);
-      if (!_cfForce) _cfForce = new WeakMap();
-      for (const b of physics.bodies) {
-        if (!b || !b.body || !b.params) continue;
-        const tp = b.params.type;
-        if (tp !== 1 && tp !== 2) continue;   /* 跳过 type0（骨骼驱动静态刚体） */
-        const o = b.body.getWorldTransform().getOrigin();
-        const px = o.x(), pz = o.z();
-        const rr = Math.sqrt(px * px + pz * pz);
-        if (rr < 1e-6) continue;
-        /* 抽搐修复：① 离心力按质量归一（F=m·ω²r），小质量发尾刚体不再被 60 力猛推振荡；
-           ② 上限 60→30；③ 每刚体力 lerp 平滑，抑制抖动 */
-        const mass = b.body.getMass ? Math.max(b.body.getMass(), 0.05) : 1;
-        const fRaw = Math.min(mass * k * rr, 30);
-        const prev = _cfForce.get(b.body) || 0;
-        const f = prev + (fRaw - prev) * 0.25;
-        _cfForce.set(b.body, f);
-        _cfVec.setValue(px / rr * f, 0, pz / rr * f);
-        b.body.applyCentralForce(_cfVec);
-      }
-    }
-  }
+  /* 每帧刷新风向圆盘指针 + 3D 风向箭头（与物理施力共用 getWindAngle） */
+  updateWindUI();
+  const wa = getWindAngle(t);
+  const wx = Math.sin(wa), wz = Math.cos(wa);
+  windArrow.setDirection(new THREE.Vector3(wx, 0, wz));
+  /* 中心对齐：位置 = 锚点 - 方向 × 半长（箭头中点落在锚点，风向转时绕中心转） */
+  const halfLen = 1.1 * windArrow.scale.x;   /* 总长 2.2 × 模型缩放 / 2 */
+  windArrow.position.set(windArrowAnchor.x - wx * halfLen, windArrowAnchor.y, windArrowAnchor.z - wz * halfLen);
 
   /* 轨道控制器：阻尼 + 自动旋转 */
   controls.update();
@@ -908,18 +1344,11 @@ function animate() {
   const now = performance.now();
   if (now - lastT >= 500) {
     fpsEl.textContent = Math.round(frames * 1000 / (now - lastT));
+    document.getElementById('phys-ms').textContent = physMs > 0.01 ? ' · 物理 ' + physMs.toFixed(1) + ' ms/帧' : ' · 物理 --';
     frames = 0; lastT = now;
   }
 }
-/* 自动旋转开关（默认关；开启后模型自动环绕） */
-const swRotate = document.getElementById('sw-rotate');
-if (swRotate) swRotate.addEventListener('click', () => {
-  const on = swRotate.classList.toggle('on');
-  swRotate.setAttribute('aria-checked', on);
-  controls.autoRotate = on;
-});
-
-/* 复位视角按钮（右下角）：恢复模型加载后的相机位置/目标，不动物理参数 */
+/* 物理开关（默认开；关闭后暂停物理模拟，裙摆/头发静止） */
 const btnReset = document.getElementById('btn-reset');
 if (btnReset) btnReset.addEventListener('click', () => {
   if (!homeCam) return;
@@ -953,7 +1382,16 @@ if (hudEl) {
       : '<i class="material-icons">expand_less</i>';
   });
 }
-initPhysPanel();
+/* PHYS 卡片折叠（小卡片可收起；MODELS 按钮不触发折叠；展开时置顶——后展开者在上） */
+const physCard = document.getElementById('phys-panel');
+if (physCard) physCard.querySelector('.pp-head').addEventListener('click', e => {
+  if (e.target.closest('.pp-models')) return;
+  const wasMin = physCard.classList.contains('min');
+  physCard.classList.toggle('min');
+  const tg = physCard.querySelector('.pp-toggle i');
+  if (tg) tg.textContent = physCard.classList.contains('min') ? 'expand_more' : 'expand_less';
+  if (wasMin) raiseCardTop(physCard);   /* 展开时置顶 30，其余回落 20（MODELS 固定 40 最上） */
+});
 animate();
 
 /* P3-2：resize 防抖（rAF 合并）+ 同步 pixelRatio，转屏/缩放窗口不再抖动模糊 */
