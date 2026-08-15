@@ -179,16 +179,6 @@
   .pp-btns { gap: 8px; }
   .pp-btns .pp-reset { width: auto; flex: 1; }
   .pp-meta { color: var(--dim); font-size: 11px; line-height: 1.6; }
-  /* PHYS 面板动作按钮行（与 MODELS 面板动作区共享状态，2026-08-15） */
-  .pp-actions { align-items: flex-start; }
-  .pp-action-btns { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; justify-content: flex-end; }
-  .pp-action {
-    flex: 1 1 auto; min-width: 44px; height: 26px; padding: 0 6px;
-    border: 1px solid var(--line); border-radius: 8px; background: #fff;
-    color: var(--text); font-size: 11px; font-family: inherit; cursor: pointer;
-  }
-  .pp-action:active { background: var(--surface2); }
-  .pp-action.playing { border-color: var(--amber); background: #fff8ef; color: var(--amber); }
 
   /* ===== 物理参数卡（右上，可折叠） ===== */
   #phys-panel {
@@ -491,15 +481,6 @@
         <div class="pp-row">
           <span class="pp-label"><i class="material-icons">visibility</i>物理调试</span>
           <label class="switch"><input type="checkbox" id="phys-debug-on"><span class="slider"></span></label>
-        </div>
-        <div class="pp-row pp-actions">
-          <span class="pp-label"><i class="material-icons">movie_filter</i>动作</span>
-          <div class="pp-action-btns" id="phys-action-btns">
-            <button class="pp-action" data-id="wink">眨眼</button>
-            <button class="pp-action" data-id="pupil">瞳孔</button>
-            <button class="pp-action" data-id="morph">表情</button>
-            <button class="pp-action" data-id="cam">镜头</button>
-          </div>
         </div>
         <div class="pp-meta"><span id="phys-meta">引擎: Ammo.js (Bullet wasm) · 刚体 -- · 约束 --</span><span id="phys-ms"> · 物理 -- ms</span></div>
       </div>
@@ -1177,33 +1158,27 @@ function playAction(a) {
   });
 }
 
-/* 渲染动作列表（MODELS 面板底部 + PHYS 面板按钮行，共享 currentAction 状态） */
+/* 渲染动作列表（MODELS 面板底部） */
 function initActions() {
   const list = document.getElementById('action-list');
-  if (list) {
-    list.innerHTML = '';
-    for (const a of ACTIONS) {
-      const btn = document.createElement('button');
-      btn.className = 'mp-item';
-      btn.dataset.id = a.id;
-      btn.appendChild(document.createTextNode(a.name));
-      btn.addEventListener('click', () => playAction(a));
-      list.appendChild(btn);
-    }
+  if (!list) return;
+  list.innerHTML = '';
+  for (const a of ACTIONS) {
+    const btn = document.createElement('button');
+    btn.className = 'mp-item';
+    btn.dataset.id = a.id;
+    btn.appendChild(document.createTextNode(a.name));
+    btn.addEventListener('click', () => playAction(a));
+    list.appendChild(btn);
   }
-  document.querySelectorAll('#phys-action-btns .pp-action').forEach(btn => {
-    const a = ACTIONS.find(x => x.id === btn.dataset.id);
-    if (a) btn.addEventListener('click', () => playAction(a));
-  });
   updateActionUI();
 }
 
-/* 当前动作高亮（两处入口同步：MODELS 面板黄框+停止图标，PHYS 面板黄框） */
+/* 当前动作高亮（黄框 + 停止图标） */
 function updateActionUI() {
-  document.querySelectorAll('#action-list .mp-item, #phys-action-btns .pp-action').forEach(b => {
+  document.querySelectorAll('#action-list .mp-item').forEach(b => {
     const isCur = b.dataset.id === currentAction;
     b.classList.toggle('playing', isCur);
-    if (!b.classList.contains('mp-item')) return;   /* PHYS 按钮只高亮边框 */
     let icon = b.querySelector('.ma-state');
     if (isCur) {
       if (!icon) { icon = document.createElement('i'); icon.className = 'material-icons ma-state'; b.appendChild(icon); }
