@@ -1541,8 +1541,16 @@ if (ppModels) ppModels.addEventListener('click', e => {
 const mpClose = document.querySelector('.mp-close');
 if (mpClose) mpClose.addEventListener('click', () => modelPanel.classList.remove('show'));
 document.addEventListener('click', e => {
+  /* 点击非卡片区域：关闭模型面板 / 收起 PHYS 卡（2026-08-16：PHYS 展开后点外部关闭，与模型选择交互一致） */
   if (modelPanel.classList.contains('show') && !modelPanel.contains(e.target) && !e.target.closest('.pp-models')) {
     modelPanel.classList.remove('show');
+  }
+  const physCard = document.getElementById('phys-panel');
+  if (physCard && !physCard.classList.contains('min') && !physCard.contains(e.target) && !e.target.closest('.pp-models')) {
+    physCard.classList.add('min');
+    physCard.style.zIndex = '20';   /* 收起回落基础层级，避免压住 HUD */
+    const tg = physCard.querySelector('.pp-toggle i');
+    if (tg) tg.textContent = 'expand_more';
   }
 });
 
