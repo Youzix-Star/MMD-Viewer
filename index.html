@@ -1135,8 +1135,10 @@ function ensureActionHelper() {
 /* 停止动作：移除 mesh/相机动画，恢复 controls（镜头动作时被禁用） */
 function stopAction() {
   if (!actionHelper) { currentAction = null; updateActionUI(); return; }
-  if (mmdMesh) actionHelper.remove(mmdMesh);
-  if (actionHelper.camera) actionHelper.remove(camera);
+  /* 修复(2026-08-15)：仅移除 helper 实际绑定过的对象——切模型后新模型未 add 过，
+   * 无条件 remove 会抛 "SkinnedMesh has not been added yet" */
+  if (mmdMesh && actionHelper.meshes.indexOf(mmdMesh) >= 0) actionHelper.remove(mmdMesh);
+  if (actionHelper.camera === camera) actionHelper.remove(camera);
   if (currentAction === 'cam') {
     controls.enabled = true;
     controls.autoRotate = physCfg.autoRotate;   /* 恢复用户设置（镜头动作期间临时关闭） */
