@@ -421,6 +421,8 @@
   body.immersive #appbar, body.immersive #hud, body.immersive #phys-panel,
   body.immersive #model-panel, body.immersive #log, body.immersive #play-ctl,
   body.immersive #btn-reset { display: none !important; }
+  /* 沉浸时 stage 扩展全屏（原顶栏 52px 区域也变成 3D 画面，2026-08-16 用户反馈） */
+  body.immersive #stage { inset: 0; }
   body.immersive #btn-immersive {
     right: 10px; bottom: auto; top: 10px; width: 26px; height: 26px;
     border-radius: 50%; opacity: .35; background: rgba(255,255,255,.8);
@@ -2076,6 +2078,8 @@ const btnImmersive = document.getElementById('btn-immersive');
 if (btnImmersive) btnImmersive.addEventListener('click', () => {
   const on = document.body.classList.toggle('immersive');
   btnImmersive.querySelector('i').textContent = on ? 'close' : 'fullscreen';
+  /* stage 全屏/还原后让渲染器适配新尺寸（2026-08-16：沉浸时顶栏区域变画面） */
+  window.dispatchEvent(new Event('resize'));
 });
 
 /* 物理开关（默认开；关闭后暂停物理模拟，裙摆/头发静止） */
