@@ -251,6 +251,13 @@
   #model-panel .mp-item:active { background: var(--surface2); }
   #model-panel .mp-item.current { border-color: var(--primary); }
   #model-panel .mp-item .mp-note { display: block; font-size: 10px; color: var(--amber); }
+  /* 动作区（美丽Liya 动作包，2026-08-15 接入） */
+  #model-panel .mp-actions { border-top: 1px solid var(--line); padding: 8px 14px 10px; }
+  #model-panel .mp-actions-title { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 500; color: var(--dim); margin-bottom: 6px; }
+  #model-panel .mp-actions-title #action-note { font-size: 10px; color: var(--amber); font-weight: 400; }
+  #model-panel .mp-actions .mp-list { padding: 0; max-height: none; }
+  #model-panel .mp-actions .mp-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; }
+  #model-panel .mp-actions .mp-item.playing { border-color: var(--amber); background: #fff8ef; }
   #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; max-height: 68vh; overflow-y: auto; overscroll-behavior: contain; }
   #phys-panel .pp-body::-webkit-scrollbar { width: 4px; }
   #phys-panel .pp-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
@@ -481,6 +488,10 @@
     <div id="model-panel">
       <div class="mp-head"><span>选择模型</span><span class="mp-close">✕</span></div>
       <div class="mp-list" id="model-list"></div>
+      <div class="mp-actions">
+        <div class="mp-actions-title">动作<span id="action-note"></span></div>
+        <div class="mp-list" id="action-list"></div>
+      </div>
     </div>
     <div id="log">
       <div class="log-head">
@@ -539,6 +550,7 @@
 import * as THREE from 'three';
 import { MMDLoader } from './vendor/MMDLoader.js';  /* 本地版：与 three r160 官方一致（曾加"骨骼 flag 透传"但无消费方，已移除，见 CHANGE.md） */
 import { MMDPhysics } from 'three/addons/animation/MMDPhysics.js';
+import { MMDAnimationHelper } from 'three/addons/animation/MMDAnimationHelper.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 /* ============================================================
@@ -987,6 +999,8 @@ function disposeModel(mesh) {
 }
 
 function onModelLoaded(mesh) {
+  /* 切换模型：先停动作（helper 绑旧 mesh，须在替换前 remove），再清理旧模型 + 旧物理 */
+  if (currentAction) stopAction();
   /* 替换模型：先清理旧模型 + 旧物理，防止叠加与内存累积 */
   if (mmdMesh) {
     group.remove(mmdMesh);
@@ -1081,6 +1095,98 @@ let currentId = null;
 
 function showModelPanel() {
   modelPanel.classList.toggle('show');
+}
+
+/* ============================================================
+ * 动作播放（美丽Liya 动作包：眨眼/瞳孔/表情/镜头 VMD，2026-08-15 接入）
+ * 素材文件不入库（models/actions/ 已 .gitignore 排除，用户指令；条款见其 rm.txt）
+ * 实现：MMDAnimationHelper({sync:false, physics 由项目手动物理接管})
+ * ============================================================ */
+const ACTIONS = [
+  { id: 'wink',  name: '眨眼', file: 'models/actions/眨眼.vmd' },
+  { id: 'pupil', name: '瞳孔', file: 'models/actions/瞳孔.vmd' },
+  { id: 'morph', name: '表情', file: 'models/actions/表情.vmd' },
+  { id: 'cam',   name: '镜头', file: 'models/actions/镜头.vmd', camera: true }
+];
+let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
+const actionVMDFiles = {};      /* VMD 数据缓存 { id: vmd } */
+let currentAction = null;       /* 当前动作 id（null=无） */
+
+function ensureActionHelper() {
+  if (!actionHelper) actionHelper = new MMDAnimationHelper({ sync: false });
+  return actionHelper;
+}
+
+/* 停止动作：移除 mesh/相机动画，恢复 controls（镜头动作时被禁用） */
+function stopAction() {
+  if (!actionHelper) { currentAction = null; updateActionUI(); return; }
+  if (mmdMesh) actionHelper.remove(mmdMesh);
+  if (actionHelper.camera) actionHelper.remove(camera);
+  if (currentAction === 'cam') {
+    controls.enabled = true;
+    controls.autoRotate = physCfg.autoRotate;   /* 恢复用户设置（镜头动作期间临时关闭） */
+  }
+  currentAction = null;
+  updateActionUI();
+}
+
+function playAction(a) {
+  if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
+  if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
+  stopAction();
+  const h = ensureActionHelper();
+  const doPlay = vmd => {
+    if (a.camera) {
+      h.add(camera, { animation: vmd });
+      controls.enabled = false;                 /* 镜头动画接管相机 */
+      controls.autoRotate = false;
+    } else {
+      h.add(mmdMesh, { animation: vmd, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
+    }
+    currentAction = a.id;
+    appendLine({ t: '动作：' + a.name + ' 播放中（再点停止；播放期间待机摇摆暂停）', c: 'ok' });
+    updateActionUI();
+  };
+  if (actionVMDFiles[a.id]) { doPlay(actionVMDFiles[a.id]); return; }
+  appendLine({ t: '动作：加载 ' + a.name + ' …', c: 'dim' });
+  loader.loadVMD(a.file, vmd => {
+    actionVMDFiles[a.id] = vmd;
+    doPlay(vmd);
+  }, undefined, err => {
+    console.error(err);
+    appendLine({ t: '动作：' + a.name + ' 加载失败（素材在 models/actions/，此目录不入库需自行放置）: ' + err.message, c: 'err' });
+  });
+}
+
+/* 渲染动作列表（MODELS 面板底部） */
+function initActions() {
+  const list = document.getElementById('action-list');
+  if (!list) return;
+  list.innerHTML = '';
+  for (const a of ACTIONS) {
+    const btn = document.createElement('button');
+    btn.className = 'mp-item';
+    btn.dataset.id = a.id;
+    btn.appendChild(document.createTextNode(a.name));
+    btn.addEventListener('click', () => playAction(a));
+    list.appendChild(btn);
+  }
+  updateActionUI();
+}
+
+/* 当前动作高亮（黄框 + 停止图标） */
+function updateActionUI() {
+  document.querySelectorAll('#action-list .mp-item').forEach(b => {
+    const isCur = b.dataset.id === currentAction;
+    b.classList.toggle('playing', isCur);
+    let icon = b.querySelector('.ma-state');
+    if (isCur) {
+      if (!icon) { icon = document.createElement('i'); icon.className = 'material-icons ma-state'; b.appendChild(icon); }
+      icon.textContent = 'stop';
+    } else if (icon) { icon.remove(); }
+  });
+  const note = document.getElementById('action-note');
+  if (note) note.textContent = currentAction ? '播放中' : '';
 }
 
 /* 加载清单模型：直接走 MMDLoader.load（与白模同一验证路径，纹理目录由 extractUrlBase 自动解析） */
@@ -1349,6 +1455,7 @@ controls.update();
  * 历史遗留：原在 controls 声明前调用，正确性依赖"加载必然异步"的隐含契约，
  * onModelLoaded 引用 controls；移到 controls 之后消除顺序隐患。 */
 initModels();
+initActions();
 
 /* PHYS-5b：启动时恢复上次保存的参数（localStorage） */
 try {
@@ -1383,10 +1490,12 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 1 / 30);  /* PHYS-3：限幅最大步长，防掉帧/切后台时 Bullet 爆炸 */
   const t = clock.elapsedTime;
 
-  /* PHYS-4：物理每帧流程 = 待机摇摆 → 微风施力 → 刷骨骼世界矩阵 → 解算并回写骨骼。
-   * 摇摆是骨骼动画、不依赖物理：曾置于物理门控内（物理关闭时摇摆失效），已外移；
+  /* PHYS-4：物理每帧流程 = 动作/摇摆 → 微风施力 → 刷骨骼世界矩阵 → 解算并回写骨骼。
+   * 动作播放时替代待机摇摆（动作自带姿态；helper 内部做 动画→ik，物理在下方手动接管）；
    * 关闭摇摆时写回基准姿态（历史遗留：关闭后残留最后一帧倾斜）。 */
-  if (physCfg.sway && sway) {
+  if (currentAction && actionHelper) {
+    actionHelper.update(dt);
+  } else if (physCfg.sway && sway) {
     applySway(t);
   } else if (sway) {
     sway.root.quaternion.copy(sway.rootBase);

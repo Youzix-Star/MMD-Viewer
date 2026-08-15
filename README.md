@@ -42,7 +42,8 @@ MMD-Viewer/
 │   └── console-white-mmd.html
 └── models/           # 模型包（.pmx + 贴图）
     ├── Kasane Teto SynthV/
-    └── Sour式初音ミク/
+    ├── Sour式初音ミク/
+    └── actions/       # 动作包 VMD（美丽Liya，不入库：.gitignore 排除，本地自备）
 ```
 
 ## 模型版权
