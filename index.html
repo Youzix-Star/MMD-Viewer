@@ -1170,8 +1170,10 @@ function stopAction() {
   }
   stopBGM();
   currentAction = null;
-  /* 场景切换：动作停止 → 恢复静止调校（马尾松绑 + 大质量头发降重，治振荡） */
+  /* 场景切换：动作停止 → 恢复静止调校（马尾松绑 + 大质量头发降重，治振荡）+ 恢复 IK/grant */
   if (physics) applyPhysTuning(physics, { action: false });
+  actionHelper.enabled.ik = true;
+  actionHelper.enabled.grant = true;
   updateActionUI();
 }
 
@@ -1210,6 +1212,10 @@ function playAction(a) {
       }
     } else {
       h.add(mmdMesh, { animation: clip, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
+      /* 舞蹈时禁用 IK/grant（2026-08-16）：VMD 自带完整骨骼姿态，IK 再解算一遍会与动作打架，
+       * 在骨骼结构不匹配的模型（White/Black）上表现为"身体像面筋"扭曲 */
+      h.enabled.ik = false;
+      h.enabled.grant = false;
       /* 播放一次不循环：mixer.clipAction 返回 helper 已创建的同一 action，
        * 直接设置 loop（r160 AnimationAction 构造硬编码 LoopRepeat，clip.loop 无效） */
       const objs = h.objects.get(mmdMesh);
