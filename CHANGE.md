@@ -311,4 +311,16 @@
 
 ---
 
+## 🐛 2026-08-15 · 修复：mmd-parser 解析无相机段 VMD 越界
+
+- **现象**：numb numb 动作加载失败 `RangeError: Offset is outside the bounds of the DataView`（parseCameras）
+- **根因**：`numb_numb_motion.vmd` 结构 = 50 字节头（30 magic + 20 模型名）+ 38651 骨骼帧 + `morphCount=0`，
+  **文件在骨骼段后直接结束（无相机段）**；官方 mmd-parser `parseVmd` 无条件 `parseCameras()` 读 cameraCount → 越界
+- **修复**：`vendor/mmdparser.module.js` 本地修复——`parseMorphs`/`parseCameras` 读 count 前检查剩余字节
+  （`dv.dv.byteLength - dv.offset < 4` 则置 0 跳过）。注意：这是修复官方解析器缺陷，
+  与之前删除的"flag 透传死数据"不同，属于正当本地化修复（有明确 bug 依据）
+- **验证**：node 复现→修复后解析成功（motionCount=38651，morph/camera=0）；动作 0~711 帧 ≈ 23.7 秒、256 骨骼
+
+---
+
 *记录由启明维护。改动请及时归档，保持"每一步都有据可查"。*

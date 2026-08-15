@@ -11144,6 +11144,15 @@ Parser.prototype.parseVmd = function ( buffer, leftToRight ) {
 		};
 
 		var metadata = vmd.metadata;
+		/* 本地修复(2026-08-15)：部分 VMD 在骨骼段后直接结束（无 morph/camera 段），
+		 * 官方解析器无条件读 count 会 DataView 越界（RangeError） */
+		if ( dv.dv.byteLength - dv.offset < 4 ) {
+
+			metadata.morphCount = 0;
+			vmd.morphs = [];
+			return;
+
+		}
 		metadata.morphCount = dv.getUint32();
 
 		vmd.morphs = [];
@@ -11172,6 +11181,14 @@ Parser.prototype.parseVmd = function ( buffer, leftToRight ) {
 		};
 
 		var metadata = vmd.metadata;
+		/* 本地修复(2026-08-15)：同 parseMorphs——无相机段的 VMD 直接 EOF */
+		if ( dv.dv.byteLength - dv.offset < 4 ) {
+
+			metadata.cameraCount = 0;
+			vmd.cameras = [];
+			return;
+
+		}
 		metadata.cameraCount = dv.getUint32();
 
 		vmd.cameras = [];
