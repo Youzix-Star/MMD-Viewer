@@ -354,4 +354,19 @@
 
 ---
 
+## 🚀 2026-08-16 · 发布 GitHub + git 历史清理（filter-repo）
+
+- **发布**：历史重写后 force push 至 github.com/Youzix-Star/MMD-Viewer（main = f2216ef），本地/远端完全同步
+- **历史清理**（用户确认后执行 `git filter-repo`）：
+  1. **抹除冰饭式初音未来全部历史**（21 blob ~25MB）——readme 禁二次配布，从全历史彻底清除
+  2. **邮箱隐私**：全部历史提交作者邮箱 `wxd1y12r@gmail.com` 改写为 GitHub noreply（含名字变体全覆盖）
+  3. commit hash 全部重写（46 提交 → 新历史），force push 覆盖远端
+- **发布前双审**：3 轮并行审查——修复 P1×1（导入弹窗旧 clip 串味）与 P2/P3×N（vendor/字体许可、
+  README 围栏、死链、动作列表限高等）
+- **后续推送**：直接用 `git push origin main`（历史已稳定）
+
+---
+
+---
+
 *记录由启明维护。改动请及时归档，保持"每一步都有据可查"。*
