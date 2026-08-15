@@ -384,7 +384,7 @@
       <span class="hud-toggle"><i class="material-icons">expand_more</i></span>
     </div>
     <div class="hud-body">
-      <div class="hud-row"><span>模型</span><b>HATSUNE_MIKU_01</b></div>
+      <div class="hud-row"><span>模型</span><b id="hud-model">--</b></div>
       <div class="hud-row"><span>渲染</span><b>MMD / PMX</b></div>
       <div class="hud-row"><span>顶点</span><b id="hud-v">--</b></div>
       <div class="hud-row"><span>面数</span><b id="hud-f">--</b></div>
@@ -1061,9 +1061,11 @@ function onModelLoaded(mesh) {
   appendLine({ t: '[ OK ] ' + modelLabel + ' 加载完成，模型已居中 ........', c: 'ok' });
   /* 面板高亮当前模型 */
   modelList.querySelectorAll('.mp-item').forEach(b => b.classList.toggle('current', b.dataset.id === currentId));
-  /* AppBar 显示当前模型名 */
+  /* AppBar + HUD 显示当前模型名（历史遗留：HUD 模型行曾写死 HATSUNE_MIKU_01，切换模型不更新） */
   const abModel = document.getElementById('ab-model');
   if (abModel) abModel.textContent = modelLabel;
+  const hudModel = document.getElementById('hud-model');
+  if (hudModel) hudModel.textContent = modelLabel;
 }
 
 /* 直接加载默认白模（拆分后状态） */
