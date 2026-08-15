@@ -405,29 +405,37 @@
   #btn-reset:active { background: var(--surface2); }
   #btn-reset .material-icons { font-size: 20px; }
 
-  /* ===== 播放控制条（动作播放时底部浮层：进度/倍速/快进） ===== */
+  /* ===== 播放控制条（动作播放时底部浮层：进度/倍速/快进/复位） ===== */
   #play-ctl {
     position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
     width: min(420px, calc(100vw - 32px));
-    background: rgba(255,255,255,.96); border: 1px solid var(--line); border-radius: var(--r-md);
-    box-shadow: var(--elev-2); padding: 8px 12px 10px; z-index: 22;
-    display: flex; flex-direction: column; gap: 6px;
+    background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: var(--r-lg);
+    box-shadow: var(--elev-2); padding: 10px 14px 12px; z-index: 22;
+    display: flex; flex-direction: column; gap: 8px;
     font-size: 11px; color: var(--dim);
+    backdrop-filter: blur(8px);
   }
   #play-ctl.hidden { display: none; }
   .pc-main { display: flex; align-items: center; gap: 10px; }
   #pc-progress { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px;
     background: linear-gradient(to right, var(--primary) var(--fill,0%), #dbe3ec var(--fill,0%)); outline: none; font-size: 16px; }
-  #pc-progress::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
-    background: #fff; border: 2px solid var(--primary); box-shadow: 0 1px 2px rgba(23,40,58,.2); cursor: pointer; }
-  #pc-progress::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid var(--primary); cursor: pointer; }
-  #pc-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .pc-btns { display: flex; gap: 6px; justify-content: flex-end; }
+  #pc-progress::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%;
+    background: #fff; border: 2.5px solid var(--primary); box-shadow: 0 1px 3px rgba(23,40,58,.25); cursor: pointer;
+    transition: transform .1s var(--ease-std); }
+  #pc-progress:active::-webkit-slider-thumb { transform: scale(1.25); }
+  #pc-progress::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #fff; border: 2.5px solid var(--primary); cursor: pointer; }
+  #pc-time { white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 11px; }
+  .pc-btns { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
   .pc-btn {
-    height: 24px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px;
+    height: 26px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px;
     background: #fff; color: var(--text); font-size: 11px; font-family: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    transition: background .12s var(--ease-std), border-color .12s var(--ease-std);
   }
-  .pc-btn:active { background: var(--surface2); }
+  .pc-btn:hover { background: var(--surface2); }
+  .pc-btn:active { background: var(--surface3); }
+  .pc-icon { padding: 0 8px; }
+  .pc-icon .material-icons { font-size: 16px; color: var(--primary); }
   .pc-speed.active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 
   /* ===== 窄屏适配：仅 PHYS 卡宽度兜底（防 <284px 视口溢出）。
@@ -614,13 +622,14 @@
       </div>
     </div>
     <button id="btn-reset" title="复位视角"><i class="material-icons">restart_alt</i></button>
-    <!-- 播放控制条（动作播放时显示：进度拖动/倍速/快进，2026-08-16） -->
+    <!-- 播放控制条（动作播放时显示：进度拖动/倍速/快进/复位，2026-08-16） -->
     <div id="play-ctl" class="hidden">
       <div class="pc-main">
         <input type="range" id="pc-progress" min="0" max="1000" step="1" value="0">
         <span id="pc-time">0:00 / 0:00</span>
       </div>
       <div class="pc-btns">
+        <button class="pc-btn pc-icon" id="pc-reset" title="停止并复位"><i class="material-icons">restart_alt</i></button>
         <button class="pc-btn" id="pc-fwd" title="快进 10 秒">+10s</button>
         <button class="pc-speed pc-btn" data-s="0.5">0.5×</button>
         <button class="pc-speed pc-btn active" data-s="1">1×</button>
@@ -1367,10 +1376,19 @@ function updatePlayCtl() {
   prog.style.setProperty('--fill', (dur > 0 ? Math.min(t / dur, 1) * 100 : 0) + '%');
   document.getElementById('pc-time').textContent = fmtTime(t) + ' / ' + fmtTime(dur);
 }
-function showPlayCtl() { document.getElementById('play-ctl').classList.remove('hidden'); }
+function showPlayCtl() {
+  /* 播放时控制条独占底部：隐藏日志卡/复位按钮，避免重叠（2026-08-16 用户反馈） */
+  const log = document.getElementById('log'), rst = document.getElementById('btn-reset');
+  if (log) log.style.display = 'none';
+  if (rst) rst.style.display = 'none';
+  document.getElementById('play-ctl').classList.remove('hidden');
+}
 function hidePlayCtl() {
   const ctl = document.getElementById('play-ctl');
   if (ctl) ctl.classList.add('hidden');
+  const log = document.getElementById('log'), rst = document.getElementById('btn-reset');
+  if (log) log.style.display = '';
+  if (rst) rst.style.display = '';
   pcSeeking = false;
 }
 
@@ -1400,6 +1418,15 @@ document.getElementById('pc-fwd').addEventListener('click', () => {
   const action = getPlayAction(), dur = getPlayDur();
   if (action && dur > 0) action.time = Math.min(action.time + 10, dur);   /* 修复：操作 action.time */
   if (bgmAudio && !bgmAudio.paused) bgmAudio.currentTime = Math.min((bgmAudio.currentTime || 0) + 10, dur || 1e9);
+});
+
+/* 控制条复位按钮（播放中也可停止并复位——替代被隐藏的右下角复位按钮） */
+document.getElementById('pc-reset').addEventListener('click', () => {
+  if (currentAction) stopAction();
+  resetPose();
+  camAnimated = false;
+  restoreHomeCam();
+  appendLine({ t: '已复位：视角 + 人物姿态 + 物理', c: 'ok' });
 });
 
 function playAction(a, preClip) {
