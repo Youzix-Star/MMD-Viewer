@@ -1218,7 +1218,10 @@ function stopAction() {
    * 无条件 remove 会抛 "SkinnedMesh has not been added yet" */
   if (mmdMesh && actionHelper.meshes.indexOf(mmdMesh) >= 0) actionHelper.remove(mmdMesh);
   if (actionHelper.camera === camera) actionHelper.remove(camera);
-  if (currentAction === 'cam') {
+  /* 修复(2026-08-16)：恢复 controls 的条件从 id==='cam' 改为"当前动作是否含镜头"——
+   * 导入的镜头动作 id 是 importN，原判断漏恢复 → 视角锁死（拖拽/复位均无效） */
+  const curAct = ACTIONS.find(x => x.id === currentAction);
+  if (curAct && (curAct.camera || curAct.camClip)) {
     controls.enabled = true;
     controls.autoRotate = physCfg.autoRotate;   /* 恢复用户设置（镜头动作期间临时关闭） */
   }
@@ -1259,6 +1262,17 @@ function playAction(a, preClip) {
       if (h.objects.get(camera) && h.objects.get(camera).mixer) {
         const act = h.objects.get(camera).mixer.clipAction(camClip);
         if (act) { act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = true; }
+        /* 修复(2026-08-16)：镜头播完自动停止（此前只监听 mesh，镜头一直锁死 controls） */
+        h.objects.get(camera).mixer.addEventListener('finished', () => {
+          if (currentAction === a.id) {
+            requestAnimationFrame(() => {
+              if (currentAction === a.id) {
+                stopAction();
+                appendLine({ t: '动作：' + a.name + ' 镜头播放完毕', c: 'dim' });
+              }
+            });
+          }
+        });
       }
     }
     const meshClip = a.motionClip || (!a.camera ? clip : null);
