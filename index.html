@@ -951,7 +951,11 @@ function setupPhysics(mesh) {
         if (si && si.set_m_numIterations) si.set_m_numIterations(20);
       } catch (e) { console.warn('求解器迭代设置失败:', e); }
       applyPhysTuning(physics);  /* 配件重力/裙摆袖口松绑（warmup 前，让落定阶段就是调校后的状态） */
-      physics.warmup(60);        /* 预演约 1s：让裙摆/头发落定，避免开场瞬间"炸开" */
+      /* warmup 加大（2026-08-16）：马尾松绑后新平衡位低于绑定位，60 帧（1s）不够 6 节链
+       * 完全下垂到位，渲染后仍会"下坠一下"。150 帧（2.5s）模拟让全部部件在首帧前落定；
+       * 同步模拟，实际执行仅几十 ms。落定后强制刷骨骼矩阵，首帧即最终结果 */
+      physics.warmup(150);
+      mesh.updateMatrixWorld(true);
       physicsMesh = mesh;
       setupSway(mesh, mmd);
       /* 物理调试线框（官方 createHelper：红=骨骼跟随 type0，绿=动态 type1，蓝=物理+位置跟随 type2）。
