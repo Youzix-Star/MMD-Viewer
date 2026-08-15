@@ -1128,6 +1128,8 @@ function onModelLoaded(mesh) {
    * far 按当前模型重算（历史遗留：Math.max 只增不减，加载过巨型模型后小模型深度精度浪费） */
   const viewDist = size.y * 1.5 + 4;
   camera.position.set(0, size.y * 0.6, viewDist);   /* x=0：正对模型正面 */
+  camera.quaternion.identity();                     /* 显式重置朝向（不依赖 controls 隐式重算，2026-08-16） */
+  camera.up.set(0, 1, 0);
   camera.far = Math.max(50, viewDist * 3);
   /* 修复(2026-08-16)：切模型时恢复 fov 默认并清 camAnimated——
    * 旧镜头 VMD 改过的变焦会在新模型上残留（播放含镜头动作时切换模型会倾斜） */
@@ -1164,6 +1166,9 @@ function onModelLoaded(mesh) {
   document.getElementById('hud-f').textContent = Math.round(f);
 
   setupPhysics(mesh);  /* 物理系统（three 官方 MMDPhysics + 参数调校） */
+  /* 诊断日志（2026-08-16，镜头残留排查用）：切模型后相机实际状态——若视角仍异常，
+   * 对照此值判断是 position/quaternion/fov 哪个残留 */
+  appendLine({ t: '相机: pos(' + camera.position.x.toFixed(1) + ',' + camera.position.y.toFixed(1) + ',' + camera.position.z.toFixed(1) + ') q(' + camera.quaternion.x.toFixed(2) + ',' + camera.quaternion.y.toFixed(2) + ',' + camera.quaternion.z.toFixed(2) + ',' + camera.quaternion.w.toFixed(2) + ') fov(' + camera.fov + ')', c: 'dim' });
   appendLine({ t: '[ OK ] ' + modelLabel + ' 加载完成，模型已居中 ........', c: 'ok' });
   /* 面板高亮当前模型 */
   modelList.querySelectorAll('.mp-item').forEach(b => b.classList.toggle('current', b.dataset.id === currentId));
