@@ -1191,6 +1191,7 @@ const ACTIONS = [
 let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
 const actionClips = {};         /* 已转换的 AnimationClip 缓存 { id: clip } */
 let currentAction = null;       /* 当前动作 id（null=无） */
+let camAnimated = false;        /* 相机曾被镜头动作驱动（2026-08-16：切无镜头动作时需先恢复初始视角） */
 let bgmAudio = null;            /* BGM（懒加载；WAV 不入库，缺失时降级） */
 let bgmWarned = false;
 
@@ -1266,16 +1267,35 @@ function resetPose() {
   if (physics) { physics.reset(); physics.warmup(30); }
 }
 
+/* 相机恢复到初始视角（全量：位置/朝向/up/fov/目标，2026-08-16） */
+function restoreHomeCam() {
+  if (!homeCam) return;
+  camera.position.copy(homeCam.pos);
+  camera.quaternion.copy(homeCam.quat);
+  camera.up.copy(homeCam.up);
+  if (homeCam.fov !== undefined) camera.fov = homeCam.fov;
+  camera.updateProjectionMatrix();
+  controls.target.copy(homeCam.target);
+  controls.update();
+}
+
 function playAction(a, preClip) {
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
   if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
   stopAction();
+  /* 修复(2026-08-16)：从"含镜头动作"切换过来时相机停在旧镜头末帧——
+   * 播放无镜头动作前恢复初始视角，否则新舞蹈画面仍倾斜 */
+  if (!a.camera && !a.camClip && camAnimated) {
+    restoreHomeCam();
+    camAnimated = false;
+  }
   resetPose();   /* 播放前复位动作姿态（用户要求 2026-08-15：避免末帧残留导致再播诡异） */
   const h = ensureActionHelper();
   const doPlay = clip => {
     /* 组合播放（2026-08-16 导入弹窗）：a.camClip（镜头）+ a.motionClip（动作）可同时存在 */
     const camClip = a.camClip || (a.camera ? clip : null);
     if (camClip) {
+      camAnimated = true;                       /* 标记相机被镜头动作驱动 */
       h.add(camera, { animation: camClip });
       controls.enabled = false;                 /* 镜头动画接管相机 */
       controls.autoRotate = false;
@@ -1878,16 +1898,8 @@ if (btnReset) btnReset.addEventListener('click', () => {
   /* 复位 = 视角 + 人物姿态 + 物理（2026-08-15 用户要求：不只视角，动作也要复位） */
   if (currentAction) stopAction();              /* 停止动作（含 BGM） */
   resetPose();                                  /* 姿态 + morph + 物理（与播放前复位共用） */
-  if (homeCam) {
-    /* 全量恢复相机（2026-08-16：镜头 VMD 驱动过 position/quaternion/fov，须全部还原） */
-    camera.position.copy(homeCam.pos);
-    camera.quaternion.copy(homeCam.quat);
-    camera.up.copy(homeCam.up);
-    if (homeCam.fov !== undefined) camera.fov = homeCam.fov;
-    camera.updateProjectionMatrix();
-    controls.target.copy(homeCam.target);
-    controls.update();
-  }
+  camAnimated = false;
+  restoreHomeCam();                             /* 全量恢复相机（镜头 VMD 驱动过的 position/quat/fov 全部还原） */
   appendLine({ t: '已复位：视角 + 人物姿态 + 物理', c: 'ok' });
 });
 
