@@ -369,4 +369,22 @@
 
 ---
 
+## 📷 2026-08-16 · 镜头动作残留三连修（启明，用户实测闭环）
+
+> 含镜头动作（相机 VMD）播放后相机状态残留，三个场景逐个修复，均已用户实测确认。
+
+1. **复位异常**：镜头 VMD 驱动相机 position/quaternion/fov，复位只恢复 position+target →
+   朝向/fov 残留。修复：`homeCam` 扩展 pos/quat/up/fov/target 全量快照 + `restoreHomeCam()`
+2. **切换舞蹈仍倾斜**：含镜头动作切无镜头舞蹈，stopAction 释放相机但停在旧镜头末帧，
+   新舞蹈不接管 → 画面持续倾斜。修复：`camAnimated` 标志 + 播放无镜头动作前 restoreHomeCam()
+3. **切换模型仍倾斜**（根因：`controls.update()` 隐式重算不可靠）：播放含镜头动作时切模型，
+   相机朝向残留。修复：onModelLoaded 相机适配**显式 `quaternion.identity()` + up 重置**
+   + fov=45 + 清 camAnimated（诊断日志确认 q≈单位四元数后移除）
+- 教训：OrbitControls.update() 的朝向重算依赖内部 spherical 状态，被相机动画污染后不可靠——
+  **相机复位必须显式设置 quaternion/up/fov**，不能只设 position 交给 controls
+
+---
+
+---
+
 *记录由启明维护。改动请及时归档，保持"每一步都有据可查"。*

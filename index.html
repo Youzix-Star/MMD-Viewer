@@ -1166,9 +1166,6 @@ function onModelLoaded(mesh) {
   document.getElementById('hud-f').textContent = Math.round(f);
 
   setupPhysics(mesh);  /* 物理系统（three 官方 MMDPhysics + 参数调校） */
-  /* 诊断日志（2026-08-16，镜头残留排查用）：切模型后相机实际状态——若视角仍异常，
-   * 对照此值判断是 position/quaternion/fov 哪个残留 */
-  appendLine({ t: '相机: pos(' + camera.position.x.toFixed(1) + ',' + camera.position.y.toFixed(1) + ',' + camera.position.z.toFixed(1) + ') q(' + camera.quaternion.x.toFixed(2) + ',' + camera.quaternion.y.toFixed(2) + ',' + camera.quaternion.z.toFixed(2) + ',' + camera.quaternion.w.toFixed(2) + ') fov(' + camera.fov + ')', c: 'dim' });
   appendLine({ t: '[ OK ] ' + modelLabel + ' 加载完成，模型已居中 ........', c: 'ok' });
   /* 面板高亮当前模型 */
   modelList.querySelectorAll('.mp-item').forEach(b => b.classList.toggle('current', b.dataset.id === currentId));
