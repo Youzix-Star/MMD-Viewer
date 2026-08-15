@@ -251,7 +251,7 @@
   #model-panel .mp-item:active { background: var(--surface2); }
   #model-panel .mp-item.current { border-color: var(--primary); }
   #model-panel .mp-item .mp-note { display: block; font-size: 10px; color: var(--amber); }
-  /* 动作区（美丽Liya 动作包，2026-08-15 接入） */
+  /* 动作区（numb numb 舞蹈动作，2026-08-15 接入） */
   #model-panel .mp-actions { border-top: 1px solid var(--line); padding: 8px 14px 10px; }
   #model-panel .mp-actions-title { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 500; color: var(--dim); margin-bottom: 6px; }
   #model-panel .mp-actions-title #action-note { font-size: 10px; color: var(--amber); font-weight: 400; }
@@ -1098,15 +1098,10 @@ function showModelPanel() {
 }
 
 /* ============================================================
- * 动作播放（美丽Liya 动作包：眨眼/瞳孔/表情/镜头 VMD，2026-08-15 接入）
- * 素材文件不入库（models/actions/ 已 .gitignore 排除，用户指令；条款见其 rm.txt）
+ * 动作播放（numb numb 舞蹈，Aileen_71 配布版，2026-08-15 接入）
  * 实现：MMDAnimationHelper({sync:false, physics 由项目手动物理接管})
  * ============================================================ */
 const ACTIONS = [
-  { id: 'wink',  name: '眨眼', file: 'models/actions/眨眼.vmd' },
-  { id: 'pupil', name: '瞳孔', file: 'models/actions/瞳孔.vmd' },
-  { id: 'morph', name: '表情', file: 'models/actions/表情.vmd' },
-  { id: 'cam',   name: '镜头', file: 'models/actions/镜头.vmd', camera: true },
   { id: 'dance', name: 'numb numb', file: 'models/numb_numb/numb_numb_motion.vmd', bgm: 'models/numb_numb/NumbNumb.wav' }
 ];
 let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
@@ -1178,7 +1173,7 @@ function playAction(a) {
     doPlay(clip);
   }, undefined, err => {
     console.error(err);
-    appendLine({ t: '动作：' + a.name + ' 加载失败（素材在 models/actions/，此目录不入库需自行放置）: ' + err.message, c: 'err' });
+    appendLine({ t: '动作：' + a.name + ' 加载失败: ' + err.message, c: 'err' });
   });
 }
 
