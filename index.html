@@ -1154,18 +1154,24 @@ function playAction(a) {
   stopAction();
   const h = ensureActionHelper();
   const doPlay = clip => {
-    /* 播放一次、不循环（用户要求 2026-08-15）：停在最后一帧；播完自动停止（含 BGM） */
-    clip.loop = THREE.LoopOnce;
-    clip.clampWhenFinished = true;
     if (a.camera) {
       h.add(camera, { animation: clip });
       controls.enabled = false;                 /* 镜头动画接管相机 */
       controls.autoRotate = false;
+      /* 播放一次不循环（r160 AnimationAction 构造硬编码 LoopRepeat，须显式 setLoop） */
+      if (h.objects.get(camera) && h.objects.get(camera).mixer) {
+        const act = h.objects.get(camera).mixer.clipAction(clip);
+        if (act) { act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = true; }
+      }
     } else {
       h.add(mmdMesh, { animation: clip, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
-      /* 播放结束（LoopOnce 播完）→ 自动停止动作 */
+      /* 播放一次不循环：mixer.clipAction 返回 helper 已创建的同一 action，
+       * 直接设置 loop（r160 AnimationAction 构造硬编码 LoopRepeat，clip.loop 无效） */
       const objs = h.objects.get(mmdMesh);
       if (objs && objs.mixer) {
+        const action = objs.mixer.clipAction(clip);
+        if (action) { action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play(); }
+        /* 播放结束（LoopOnce 播完）→ 自动停止动作 */
         objs.mixer.addEventListener('finished', () => {
           if (currentAction === a.id) {
             stopAction();
