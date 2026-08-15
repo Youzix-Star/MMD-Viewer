@@ -1102,7 +1102,8 @@ function showModelPanel() {
  * 实现：MMDAnimationHelper({sync:false, physics 由项目手动物理接管})
  * ============================================================ */
 const ACTIONS = [
-  { id: 'dance', name: 'numb numb', file: 'models/numb_numb/numb_numb_motion.vmd', bgm: 'models/numb_numb/NumbNumb.wav' }
+  { id: 'dance', name: 'numb numb', file: 'models/numb_numb/numb_numb_motion.vmd', bgm: 'models/numb_numb/NumbNumb.wav' },
+  { id: 'iris',  name: 'IRIS OUT',  file: 'models/IRIS_OUT/IRIS OUT.vmd',           bgm: 'models/IRIS_OUT/IRIS OUT.wav' }
 ];
 let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
 const actionClips = {};         /* 已转换的 AnimationClip 缓存 { id: clip } */
