@@ -501,7 +501,7 @@
     <button id="btn-reset" title="复位视角"><i class="material-icons">restart_alt</i></button>
   </main>
 
-<!-- Ammo.js 物理引擎（three r160 custom wasm 版，含 setParam/CFM 支持，异步初始化） -->
+<!-- Ammo.js 物理引擎（three r160 官方 libs/ammo.wasm.js，异步初始化；旧注释"custom wasm 版，含 setParam/CFM 支持"不实——与官方逐字节一致，setParam/CFM 全项目零调用，已修正） -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/ammo.wasm.js"></script>
 <script>
 
