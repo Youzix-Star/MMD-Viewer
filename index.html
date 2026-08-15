@@ -1136,8 +1136,16 @@ function onModelLoaded(mesh) {
   controls.maxDistance = Math.max(viewDist * 2.5, curDist * 1.5);
   controls.minDistance = Math.min(viewDist * 0.3, curDist * 0.6);
   controls.update();
-  /* 记录复位视角（复位按钮用；物理参数不重置） */
-  homeCam = { pos: camera.position.clone(), target: controls.target.clone() };
+  /* 记录复位视角（复位按钮用；物理参数不重置）。
+   * 2026-08-16：补 quat/up/fov——镜头 VMD 会驱动相机 position/quaternion/fov，
+   * 复位若只恢复 position+target，朝向/fov 残留导致视角异常（用户反馈"加镜头包复位异常"） */
+  homeCam = {
+    pos: camera.position.clone(),
+    quat: camera.quaternion.clone(),
+    up: camera.up.clone(),
+    fov: camera.fov,
+    target: controls.target.clone()
+  };
 
   /* HUD 顶点/面数 */
   let v = 0, f = 0;
@@ -1232,6 +1240,11 @@ function stopAction() {
   if (curAct && (curAct.camera || curAct.camClip)) {
     controls.enabled = true;
     controls.autoRotate = physCfg.autoRotate;   /* 恢复用户设置（镜头动作期间临时关闭） */
+    /* 2026-08-16：镜头 VMD 会改 fov——停止时立即恢复，避免拖拽时视角仍异常 */
+    if (homeCam && homeCam.fov !== undefined && camera.fov !== homeCam.fov) {
+      camera.fov = homeCam.fov;
+      camera.updateProjectionMatrix();
+    }
   }
   stopBGM();
   currentAction = null;
@@ -1866,7 +1879,12 @@ if (btnReset) btnReset.addEventListener('click', () => {
   if (currentAction) stopAction();              /* 停止动作（含 BGM） */
   resetPose();                                  /* 姿态 + morph + 物理（与播放前复位共用） */
   if (homeCam) {
+    /* 全量恢复相机（2026-08-16：镜头 VMD 驱动过 position/quaternion/fov，须全部还原） */
     camera.position.copy(homeCam.pos);
+    camera.quaternion.copy(homeCam.quat);
+    camera.up.copy(homeCam.up);
+    if (homeCam.fov !== undefined) camera.fov = homeCam.fov;
+    camera.updateProjectionMatrix();
     controls.target.copy(homeCam.target);
     controls.update();
   }
