@@ -405,9 +405,9 @@
   #btn-reset:active { background: var(--surface2); }
   #btn-reset .material-icons { font-size: 20px; }
 
-  /* ===== 播放控制条（2026-08-16：占用左下日志卡位置，复位按钮保持右下不动） ===== */
+  /* ===== 播放控制条（2026-08-16：日志折叠小长条上方，复位右下不动） ===== */
   #play-ctl {
-    position: absolute; left: 16px; bottom: 16px;   /* 与日志卡同位：播放时日志让位 */
+    position: absolute; left: 16px; bottom: 64px;   /* 日志折叠态(~38px)上方：16+38+10 */
     width: min(300px, calc(100vw - 32px));
     background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: var(--r-md);
     box-shadow: var(--elev-1); padding: 8px 12px 10px; z-index: 15;
@@ -1374,17 +1374,27 @@ function updatePlayCtl() {
   prog.style.setProperty('--fill', (dur > 0 ? Math.min(t / dur, 1) * 100 : 0) + '%');
   document.getElementById('pc-time').textContent = fmtTime(t) + ' / ' + fmtTime(dur);
 }
+let logWasMin = false;   /* 播放前日志折叠状态（停止后恢复） */
 function showPlayCtl() {
-  /* 播放时日志卡让位给控制条（同位置）；右下复位按钮保持不动（2026-08-16 用户方案） */
+  /* 2026-08-16 用户方案：日志折叠成小长条（保留可点），控制条在日志上方；复位右下不动 */
   const log = document.getElementById('log');
-  if (log) log.style.display = 'none';
+  if (log) {
+    logWasMin = log.classList.contains('min');
+    log.classList.add('min');
+    const tg = log.querySelector('.log-toggle i');
+    if (tg) tg.textContent = 'expand_more';
+  }
   document.getElementById('play-ctl').classList.remove('hidden');
 }
 function hidePlayCtl() {
   const ctl = document.getElementById('play-ctl');
   if (ctl) ctl.classList.add('hidden');
   const log = document.getElementById('log');
-  if (log) log.style.display = '';
+  if (log && !logWasMin) {
+    log.classList.remove('min');
+    const tg = log.querySelector('.log-toggle i');
+    if (tg) tg.textContent = 'expand_less';
+  }
   pcSeeking = false;
 }
 
