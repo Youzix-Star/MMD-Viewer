@@ -40,7 +40,7 @@ import {
 } from 'three';
 import { MMDToonShader } from './MMDToonShader.js';
 import { TGALoader } from './TGALoader.js';
-import { MMDParser } from './mmdparser.module.js';
+import { MMDParser } from './mmdparser.module.js?v=20260815';  /* ?v= 强制绕过浏览器启发式缓存（2026-08-15 解析器修复后曾因缓存加载旧版） */
 
 /**
  * Dependencies
