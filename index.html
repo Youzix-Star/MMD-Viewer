@@ -1101,12 +1101,9 @@ function showModelPanel() {
  * 动作播放（numb numb 舞蹈，Aileen_71 配布版，2026-08-15 接入）
  * 实现：MMDAnimationHelper({sync:false, physics 由项目手动物理接管})
  * ============================================================ */
-const ACTIONS = [
-  { id: 'dance', name: 'numb numb', file: 'models/numb_numb/numb_numb_motion.vmd', bgm: 'models/numb_numb/NumbNumb.wav' },
-  { id: 'iris',  name: 'IRIS OUT',  file: 'models/IRIS_OUT/IRIS OUT.vmd',           bgm: 'models/IRIS_OUT/IRIS OUT.wav' },
-  { id: 'idol',  name: 'アイドル',  file: 'models/idol/Sour式/动作 Sour.vmd',        bgm: 'models/idol/アイドル-YOASOBI.wav' },
-  { id: 'idolcam', name: 'アイドル镜头', file: 'models/idol/Sour式/相机 Sour.vmd',   camera: true }
-];
+/* 动作清单：运行时从 manifest.json 的 actions 数组加载（2026-08-16 起用户可自行添加动作，
+ * 与模型机制对称——在 manifest.json 加条目 + 放置 VMD 即可，见 README） */
+const ACTIONS = [];
 let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
 const actionClips = {};         /* 已转换的 AnimationClip 缓存 { id: clip } */
 let currentAction = null;       /* 当前动作 id（null=无） */
@@ -1307,6 +1304,10 @@ async function initModels() {
     }
     const def = (data.models || []).find(m => m.id === 'white') || (data.models || [])[0];
     if (def) loadServerModel(def);
+    /* 动作清单：从 manifest 加载（用户可自行添加动作条目） */
+    ACTIONS.length = 0;
+    for (const a of data.actions || []) ACTIONS.push(a);
+    initActions();
   } catch (e) {
     console.error(e);
     appendLine({ t: '模型清单加载失败: ' + e.message, c: 'err' });
@@ -1531,8 +1532,7 @@ controls.update();
 /* 启动：读取清单并加载默认模型。
  * 历史遗留：原在 controls 声明前调用，正确性依赖"加载必然异步"的隐含契约，
  * onModelLoaded 引用 controls；移到 controls 之后消除顺序隐患。 */
-initModels();
-initActions();
+initModels();   /* initActions 由 initModels 在 manifest 加载后调用（动作清单来自 manifest.json） */
 
 /* PHYS-5b：启动时恢复上次保存的参数（localStorage） */
 try {
