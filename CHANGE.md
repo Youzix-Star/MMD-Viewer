@@ -277,4 +277,15 @@
 
 ---
 
+## 🐛 2026-08-15 · 修复：动作播放 TypeError（clip 转换缺失）
+
+- **现象**：点击任意动作报 `Cannot read properties of undefined (reading 'length')`，4 个动作全部失败
+- **根因**：r160 `MMDAnimationHelper` 的 `_setupMeshAnimation`/`_setupCameraAnimation` 都直接
+  `clipAction(clip)`——期望 **AnimationClip**；此前传的是 VMD 原始数据（无 `tracks`）→ AnimationAction 崩溃
+- **修复**：改用 `MMDLoader.loadAnimation(url, object, onLoad)`——内部 `loadVMD` + 按目标类型转换
+  （模型 `build(vmd, mesh)`、相机 `buildCameraAnimation(vmd)`），缓存转换后的 clip
+- 教训：three 官方 MMD 示例走 `loadWithAnimation`（返回已转 clip），手接 helper 时须自行转换
+
+---
+
 *记录由启明维护。改动请及时归档，保持"每一步都有据可查"。*

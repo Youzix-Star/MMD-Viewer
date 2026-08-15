@@ -1109,7 +1109,7 @@ const ACTIONS = [
   { id: 'cam',   name: '镜头', file: 'models/actions/镜头.vmd', camera: true }
 ];
 let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
-const actionVMDFiles = {};      /* VMD 数据缓存 { id: vmd } */
+const actionClips = {};         /* 已转换的 AnimationClip 缓存 { id: clip } */
 let currentAction = null;       /* 当前动作 id（null=无） */
 
 function ensureActionHelper() {
@@ -1135,23 +1135,25 @@ function playAction(a) {
   if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
   stopAction();
   const h = ensureActionHelper();
-  const doPlay = vmd => {
+  const doPlay = clip => {
     if (a.camera) {
-      h.add(camera, { animation: vmd });
+      h.add(camera, { animation: clip });
       controls.enabled = false;                 /* 镜头动画接管相机 */
       controls.autoRotate = false;
     } else {
-      h.add(mmdMesh, { animation: vmd, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
+      h.add(mmdMesh, { animation: clip, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
     }
     currentAction = a.id;
     appendLine({ t: '动作：' + a.name + ' 播放中（再点停止；播放期间待机摇摆暂停）', c: 'ok' });
     updateActionUI();
   };
-  if (actionVMDFiles[a.id]) { doPlay(actionVMDFiles[a.id]); return; }
+  if (actionClips[a.id]) { doPlay(actionClips[a.id]); return; }
   appendLine({ t: '动作：加载 ' + a.name + ' …', c: 'dim' });
-  loader.loadVMD(a.file, vmd => {
-    actionVMDFiles[a.id] = vmd;
-    doPlay(vmd);
+  /* 修复(2026-08-15)：r160 MMDAnimationHelper 直接吃 AnimationClip，不吃 VMD 原始数据——
+   * 用 loadAnimation 按目标类型转换（模型→build(vmd,mesh)，相机→buildCameraAnimation(vmd)） */
+  loader.loadAnimation(a.file, a.camera ? camera : mmdMesh, clip => {
+    actionClips[a.id] = clip;
+    doPlay(clip);
   }, undefined, err => {
     console.error(err);
     appendLine({ t: '动作：' + a.name + ' 加载失败（素材在 models/actions/，此目录不入库需自行放置）: ' + err.message, c: 'err' });
