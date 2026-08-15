@@ -1171,11 +1171,18 @@ function playAction(a) {
       if (objs && objs.mixer) {
         const action = objs.mixer.clipAction(clip);
         if (action) { action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play(); }
-        /* 播放结束（LoopOnce 播完）→ 自动停止动作 */
+        /* 播放结束（LoopOnce 播完）→ 自动停止动作。
+         * 关键：finished 在 helper._animateMesh 的 mixer.update() 内部同步触发，
+         * 若在回调里直接 remove(mesh)，返回后 _saveBones 读已删的 objects 条目会崩溃——
+         * 延迟到下一帧再停止（修复 2026-08-15） */
         objs.mixer.addEventListener('finished', () => {
           if (currentAction === a.id) {
-            stopAction();
-            appendLine({ t: '动作：' + a.name + ' 播放完毕', c: 'dim' });
+            requestAnimationFrame(() => {
+              if (currentAction === a.id) {
+                stopAction();
+                appendLine({ t: '动作：' + a.name + ' 播放完毕', c: 'dim' });
+              }
+            });
           }
         });
       }
