@@ -1254,11 +1254,13 @@ function playBGM(src) {
     } else {
       bgmAudio.currentTime = 0;
     }
+    bgmAudio.playbackRate = actionSpeed;   /* 修复(2026-08-16)：音乐随倍速（切歌后保持） */
     bgmAudio.play().catch(() => {});
     return;
   }
   bgmAudio = new Audio(src);
   bgmAudio.loop = true;
+  bgmAudio.playbackRate = actionSpeed;     /* 修复(2026-08-16)：倍速联动音乐 */
   bgmAudio.play().catch(() => {
     if (!bgmWarned) {
       bgmWarned = true;
@@ -1367,21 +1369,28 @@ function hidePlayCtl() {
 document.getElementById('pc-progress').addEventListener('input', () => {
   pcSeeking = true;
   const mixer = getPlayMixer(), dur = getPlayDur();
-  if (mixer && dur > 0) mixer.time = document.getElementById('pc-progress').value / 1000 * dur;
+  const v = document.getElementById('pc-progress').value / 1000 * dur;
+  if (mixer && dur > 0) mixer.time = v;
+  /* 修复(2026-08-16)：进度条同步 BGM——动画与音乐一起 seek（音乐短于动画时 clamp） */
+  if (bgmAudio && !bgmAudio.paused && dur > 0) {
+    bgmAudio.currentTime = Math.min(v, bgmAudio.duration || v);
+  }
 });
 document.getElementById('pc-progress').addEventListener('change', () => { pcSeeking = false; });
 
-/* 倍速按钮 */
+/* 倍速按钮（同步 BGM：Audio.playbackRate 变速） */
 document.querySelectorAll('.pc-speed').forEach(b => b.addEventListener('click', () => {
   actionSpeed = parseFloat(b.dataset.s);
+  if (bgmAudio) bgmAudio.playbackRate = actionSpeed;   /* 修复(2026-08-16)：音乐随倍速变速 */
   document.querySelectorAll('.pc-speed').forEach(x => x.classList.toggle('active', x === b));
-  appendLine({ t: '播放速度：' + actionSpeed + '×', c: 'dim' });
+  appendLine({ t: '播放速度：' + actionSpeed + '×（音乐同步变速）', c: 'dim' });
 }));
 
-/* 快进 10 秒 */
+/* 快进 10 秒（同步 BGM） */
 document.getElementById('pc-fwd').addEventListener('click', () => {
   const mixer = getPlayMixer(), dur = getPlayDur();
   if (mixer && dur > 0) mixer.time = Math.min(mixer.time + 10, dur);
+  if (bgmAudio && !bgmAudio.paused) bgmAudio.currentTime = Math.min((bgmAudio.currentTime || 0) + 10, dur || 1e9);
 });
 
 function playAction(a, preClip) {
