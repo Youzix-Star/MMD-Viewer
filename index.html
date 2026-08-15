@@ -458,6 +458,11 @@
           <input type="range" class="pp-range" id="soft-grav" min="0" max="1" step="0.05" value="0.15">
           <b class="pp-val" id="soft-grav-v">15%</b>
         </div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">speed</i>帧率上限</span>
+          <input type="range" class="pp-range" id="fps-cap" min="0" max="120" step="1" value="0">
+          <b class="pp-val" id="fps-cap-v">不限</b>
+        </div>
         <div class="pp-row pp-btns">
           <button class="pp-reset" id="phys-reset"><i class="material-icons">restart_alt</i>重置物理</button>
           <button class="pp-reset" id="phys-defaults"><i class="material-icons">settings_backup_restore</i>恢复默认</button>
@@ -706,9 +711,9 @@ const ammoReady = new Promise((resolve, reject) => {
 });
 
 /* 物理参数（PHYS 面板可调；切换模型/复位视角均不重置） */
-const physCfg = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true };
+const physCfg = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0 };
 /* 出厂默认（"恢复默认"按钮用） */
-const PHYS_DEFAULTS = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true };
+const PHYS_DEFAULTS = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0 };
 let physMs = 0;   /* 物理解算耗时滑动平均（ms/帧），PHYS 面板实时显示 */
 
 /* PHYS-5：参数持久化（localStorage）——刷新页面自动恢复上次设置 */
@@ -1252,6 +1257,8 @@ bindRange('soft-grav', 'soft-grav-v', x => Math.round(x * 100) + '%', x => {
   if (physics) applyPhysTuning(physics);   /* 配件重力实时生效 */
   savePhysCfg();
 });
+/* 帧率上限：0 = 不限（默认）；>0 时跳过不足间隔的 rAF 帧（渲染与物理一起降频） */
+bindRange('fps-cap', 'fps-cap-v', x => x == 0 ? '不限' : x + ' FPS', x => { physCfg.fpsCap = x; savePhysCfg(); });
 bindRange('wind-power', 'wind-power-v', x => x + '%', x => { physCfg.wind = x / 100; savePhysCfg(); });
 
 document.getElementById('phys-reset').addEventListener('click', () => {
@@ -1301,6 +1308,7 @@ function syncPhysUI() {
   setRangeVal('sway-spd', physCfg.speed);
   setRangeVal('phys-grav', physCfg.gravity);
   setRangeVal('soft-grav', physCfg.softGrav);
+  setRangeVal('fps-cap', physCfg.fpsCap);
   setRangeVal('wind-power', physCfg.wind * 100);
   updateWindUI();
   setWindArrowAlpha(physCfg.windOn ? 0.85 : 0.25);
@@ -1362,9 +1370,15 @@ try {
 const clock = new THREE.Clock();
 const fpsEl = document.getElementById('fps');
 let frames = 0, lastT = 0;  /* P3-6：lastT=0 表示未初始化，首帧再启动计时（不含初始化耗时） */
+let lastFrameT = 0;  /* 帧率上限：上次渲染帧时间戳（0=首帧必渲染） */
 
 function animate() {
   requestAnimationFrame(animate);
+  /* 帧率上限（physCfg.fpsCap，0=不限）：不足间隔的 rAF 帧直接跳过——不渲染、不更新物理。
+   * 跳帧后 clock.getDelta 返回跨帧大值，由下方 dt 限幅 1/30 兜底（物理不炸） */
+  const _now = performance.now();
+  if (physCfg.fpsCap > 0 && _now - lastFrameT < 1000 / physCfg.fpsCap) return;
+  lastFrameT = _now;
   if (!lastT) lastT = performance.now();  /* P3-6：计时起点 = 第一帧 */
   const dt = Math.min(clock.getDelta(), 1 / 30);  /* PHYS-3：限幅最大步长，防掉帧/切后台时 Bullet 爆炸 */
   const t = clock.elapsedTime;

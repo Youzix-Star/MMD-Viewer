@@ -34,7 +34,7 @@ mesh.geometry.userData.MMD = { bones, iks, grants, rigidBodies, constraints }
 
 ## 3. 参数调校系统（本项目的核心价值）
 
-所有参数在 PHYS 面板可调，`physCfg` 单对象 + `localStorage` 持久化（`savePhysCfg()` 17 个调用点）+ "恢复默认"（`PHYS_DEFAULTS`，2026-08-15 修复：该按钮此前从未绑定监听）。
+所有参数在 PHYS 面板可调，`physCfg` 单对象 + `localStorage` 持久化（`savePhysCfg()` 18 个调用点）+ "恢复默认"（`PHYS_DEFAULTS`，2026-08-15 修复：该按钮此前从未绑定监听）。
 
 | 参数 | 默认 | 作用 |
 |---|---|---|
@@ -43,6 +43,7 @@ mesh.geometry.userData.MMD = { bones, iks, grants, rigidBodies, constraints }
 | windOn / wind / windAuto / windAngle | false / 0.12 / true / 0 | 微风：方向扫动或手动罗盘指定 |
 | gravity | 1.0 | 全局重力倍率 |
 | softGrav | **0.15** | 头发/领带刚体单独重力倍率 |
+| fpsCap | 0 | 帧率上限（0=不限；>0 时不足间隔的 rAF 帧跳过，渲染与物理一起降频；30 上限时物理 30Hz 步进，dt 限幅 1/30 兜底不炸；移动端降负载/省电） |
 | autoRotate | true | 相机自动环绕 |
 | debug | false | 刚体线框（MMDPhysicsHelper） |
 
