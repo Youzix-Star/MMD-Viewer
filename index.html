@@ -906,15 +906,21 @@ function applyPhysTuning(p) {
   const gSoft = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity * physCfg.softGrav, 0);
   const gSkirt = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity * SKIRT_GRAV, 0);
   const gFull = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity, 0);
+  /* Teto 前髪特调（2026-08-16）：mass=15 的大质量刘海 + 旋转弹簧 250 = 欠阻尼振荡
+   * （下坠→快速回弹循环，开风消失）。对 mass≥10 的头发刚体有效重力再降 80%
+   * （softGrav×0.2），让重力矩回到弹簧可承受范围——v3 微重力路线的质量加权版 */
+  const gSoftHeavy = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity * physCfg.softGrav * 0.2, 0);
   for (const b of p.bodies) {
     const name = b.params.name;
     const isSoft = /髮|髪|ネクタイ/.test(name);   /* 头发+领带（面板"配件重力"滑块控制） */
     const isSkirt = /スカート/.test(name);
-    b.body.setGravity(isSkirt ? gSkirt : (isSoft ? gSoft : gFull));
+    const isHeavy = isSoft && b.params.weight >= 10;   /* 异常大质量头发刚体（Teto 前髪 15） */
+    b.body.setGravity(isSkirt ? gSkirt : (isHeavy ? gSoftHeavy : (isSoft ? gSoft : gFull)));
   }
   Ammo.destroy(gSoft);
   Ammo.destroy(gSkirt);
   Ammo.destroy(gFull);
+  Ammo.destroy(gSoftHeavy);
 }
 function setupPhysics(mesh) {
   disposePhysics();   /* 先释放旧模型物理（若 ammo 未就绪，此处为无操作） */
@@ -932,6 +938,12 @@ function setupPhysics(mesh) {
         maxStepNum: 3,           /* 掉帧时最多 3 个子步，控制手机端开销 */
         gravity: new THREE.Vector3(0, -9.8 * 10 * physCfg.gravity, 0)  /* MMD 单位制（1单位=10cm） */
       });
+      /* 求解器迭代 20（2026-08-16，Teto 头发振荡治理之一）：
+       * Bullet 默认 10，约束求解更准可减少弹簧-约束漂移（DEVLOG 十二章存档的通用技巧） */
+      try {
+        const si = physics.world.getSolverInfo();
+        if (si && si.set_m_numIterations) si.set_m_numIterations(20);
+      } catch (e) { console.warn('求解器迭代设置失败:', e); }
       applyPhysTuning(physics);  /* 配件重力/裙摆袖口松绑（warmup 前，让落定阶段就是调校后的状态） */
       physics.warmup(60);        /* 预演约 1s：让裙摆/头发落定，避免开场瞬间"炸开" */
       physicsMesh = mesh;
