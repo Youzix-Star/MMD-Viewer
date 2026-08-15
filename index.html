@@ -1598,11 +1598,24 @@ function animate() {
 /* 物理开关（默认开；关闭后暂停物理模拟，裙摆/头发静止） */
 const btnReset = document.getElementById('btn-reset');
 if (btnReset) btnReset.addEventListener('click', () => {
-  if (!homeCam) return;
-  camera.position.copy(homeCam.pos);
-  controls.target.copy(homeCam.target);
-  controls.update();
-  appendLine({ t: '视角已复位', c: 'ok' });
+  /* 复位 = 视角 + 人物姿态 + 物理（2026-08-15 用户要求：不只视角，动作也要复位） */
+  if (currentAction) stopAction();              /* 停止动作（含 BGM） */
+  if (mmdMesh) {
+    if (mmdMesh.pose) {                          /* 骨骼回绑定姿势 */
+      mmdMesh.pose();
+      mmdMesh.updateMatrixWorld(true);
+    }
+    if (mmdMesh.morphTargetInfluences) {         /* morph 清零（动作残留的表情） */
+      for (let i = 0; i < mmdMesh.morphTargetInfluences.length; i++) mmdMesh.morphTargetInfluences[i] = 0;
+    }
+  }
+  if (physics) { physics.reset(); physics.warmup(30); }   /* 刚体重贴骨骼并落定 */
+  if (homeCam) {
+    camera.position.copy(homeCam.pos);
+    controls.target.copy(homeCam.target);
+    controls.update();
+  }
+  appendLine({ t: '已复位：视角 + 人物姿态 + 物理', c: 'ok' });
 });
 
 /* 日志卡：点击头部展开/收起（默认展开） */
