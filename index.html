@@ -1359,7 +1359,9 @@ function closeImportModal() { document.getElementById('import-modal').classList.
 /* 解析 VMD 为 clip（相机/动作自动识别） */
 function vmdFileToClip(file, mesh) {
   return file.arrayBuffer().then(ab => {
-    const vmd = loader.parser.parseVmd(ab, false);
+    /* 修复(2026-08-16)：parseVmd 第二参必须 true（leftToRight）——
+     * 与 loadVMD 一致做 MMD→three 左右手系转换；false 时动作镜像（手臂前后反） */
+    const vmd = loader.parser.parseVmd(ab, true);
     const isCam = vmd.cameras && vmd.cameras.length > 0 && (!vmd.motions || vmd.motions.length === 0);
     const clip = isCam ? loader.animationBuilder.buildCameraAnimation(vmd) : loader.animationBuilder.build(vmd, mesh);
     return { clip: clip, isCam: isCam };
