@@ -1464,6 +1464,10 @@ function closeImportModal() { document.getElementById('import-modal').classList.
 /* 解析 VMD 为 clip（相机/动作自动识别） */
 function vmdFileToClip(file, mesh) {
   return file.arrayBuffer().then(ab => {
+    /* 修复(2026-08-16)：build clip 前先 resetPose——clip 的 position 轨道 = build 时骨骼
+     * 位置 + 帧值（MMDLoader.buildSkeletalAnimation 的 basePosition 逻辑）。若骨骼停在
+     * 上一动作末帧（如 IRIS OUT 蹲姿），basePosition 用错 → 新动作播放时模型错位（蹲着跳） */
+    resetPose();
     /* 修复(2026-08-16)：parseVmd 第二参必须 true（leftToRight）——
      * 与 loadVMD 一致做 MMD→three 左右手系转换；false 时动作镜像（手臂前后反） */
     const vmd = loader.parser.parseVmd(ab, true);
