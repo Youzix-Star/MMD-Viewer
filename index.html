@@ -879,10 +879,15 @@ function loosenSoftParts(p) {
     const c = cc.constraint;
     const isSkirt = /スカート/.test(cc.params.name);
     const isSleeve = /袖/.test(cc.params.name);
-    if (!isSkirt && !isSleeve) continue;
-    const rMul = isSkirt ? SKIRT_R_LIMIT_MUL : SLEEVE_R_LIMIT_MUL;
-    const srMul = isSkirt ? SKIRT_SPRING_R_MUL : SLEEVE_SPRING_R_MUL;
-    const spMul = isSkirt ? SKIRT_SPRING_P_MUL : SLEEVE_SPRING_P_MUL;
+    /* Teto 马尾松绑（2026-08-16）：左髪/右髪 约束 rotLimit ±0.017(1°) + spring 150 =
+     * 比 Sour 裙摆还焊死（裙摆 ±0.02 + 100）→ 限制边界反复抖动 = "下坠→快速回弹"循环。
+     * 用裙摆同款系数松绑（限制 ×4 / 旋转弹簧 ×0.25 / 位置弹簧 ×0.1）。
+     * 注意：/^[左右]髪/ 简体"髪"精准匹配 Teto（White 用繁体"左髮"不误伤） */
+    const isTail = /^[左右]髪/.test(cc.params.name);
+    if (!isSkirt && !isSleeve && !isTail) continue;
+    const rMul = isSkirt ? SKIRT_R_LIMIT_MUL : (isTail ? SKIRT_R_LIMIT_MUL : SLEEVE_R_LIMIT_MUL);
+    const srMul = isSkirt ? SKIRT_SPRING_R_MUL : (isTail ? SKIRT_SPRING_R_MUL : SLEEVE_SPRING_R_MUL);
+    const spMul = isSkirt ? SKIRT_SPRING_P_MUL : (isTail ? SKIRT_SPRING_P_MUL : SLEEVE_SPRING_P_MUL);
     v1.setValue(cc.params.rotationLimitation1[0] * rMul,
                 cc.params.rotationLimitation1[1] * rMul,
                 cc.params.rotationLimitation1[2] * rMul);
