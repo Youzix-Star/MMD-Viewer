@@ -1,0 +1,17 @@
+vendor/ 本地化文件版权声明
+==========================
+
+本目录下四个文件来自开源项目，随本项目再分发，遵循各自 MIT 许可：
+
+1. MMDLoader.js / MMDToonShader.js / TGALoader.js
+   来源：three.js examples/jsm（r160）
+   版权：Copyright (c) 2010-2023 three.js authors
+   许可：MIT License —— https://github.com/mrdoob/three.js/blob/dev/LICENSE
+
+2. mmdparser.module.js
+   来源：mmd-parser（Takahiro，https://github.com/takahirox/mmd-parser）
+   版权：Copyright (c) 2016-2023 Takahiro
+   许可：MIT License —— https://github.com/takahirox/mmd-parser/blob/master/LICENSE
+
+MIT License 摘要：允许自由使用/复制/修改/合并/出版/分发/再许可/出售副本，
+须在源代码的所有副本中保留上述版权声明与本许可声明；软件按"原样"提供，不附带任何担保。

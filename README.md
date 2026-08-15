@@ -69,15 +69,26 @@ MODELS 动作区右上 **「📂 导入」** → 弹窗**分别选择 动作(.vm
 
 > ⚠️ **条款自负**：自行导入的动作/音乐，配布条款与借物表由使用者自行确认。
 > 动作需要模型带相应辅助骨骼（如肩P/腕捩/足D）才能完整发挥。
+
 - 曾接入的美丽Liya 动作包（眨眼/瞳孔/表情/镜头）因条款含"禁手机mmd/禁二传"**已全删**（2026-08-15，见 CHANGE.md）
-```
+
+## 第三方素材许可声明
+
+本项目除自研代码外含第三方作品，**各素材不适用 AGPL，遵循各自条款**：
+
+| 内容 | 来源 | 许可 |
+|------|------|------|
+| `models/` 模型与动作 | 各原作者 | 遵循各自 readme/条款（见上表与借物表） |
+| `vendor/*.js` | three.js examples + mmd-parser | MIT（见 `vendor/LICENSE`） |
+| `vendor/fonts/` | Google Material Icons | Apache-2.0（见 `vendor/fonts/LICENSE`） |
+| `source/console-white-mmd.html` | 陌袹陌（源项目） | 本项目基于其修改，详见特别鸣谢 |
 
 ## 模型版权
 
 内置模型归原作者所有，使用与分发请遵循各模型 `readme.txt`：
 
 - **Sour式初音ミク**（Sour暄）：允许改造与二次配布（保持 Sour 式风格、附 readme）；禁止商用、R18/政治/宗教等
-- **Kasane Teto SynthV**：允许自由使用，须遵守 TWINDRILL 与 AH-Software 角色条款
+- **Kasane Teto SynthV**：允许自由使用，须遵守 [TWINDRILL](https://kasaneteto.jp/) 与 AH-Software 角色条款
 
 ### 开源协议
 

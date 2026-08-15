@@ -264,7 +264,7 @@
   }
   #model-panel .mp-import:active { background: var(--surface2); }
   #model-panel .mp-import .material-icons { font-size: 13px; }
-  #model-panel .mp-actions .mp-list { padding: 0; max-height: none; }
+  #model-panel .mp-actions .mp-list { padding: 0; max-height: 40vh; overflow-y: auto; }   /* 发布前审查：动作列表限高防导入多个后手机端不可达 */
   #model-panel .mp-actions .mp-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; }
   #model-panel .mp-actions .mp-item.playing { border-color: var(--amber); background: #fff8ef; }
   /* 动作项编辑按钮（✎：给动作加音乐/镜头，2026-08-16） */
@@ -1020,6 +1020,7 @@ function setupPhysics(mesh) {
     } catch (e) {
       console.error(e);
       appendLine({ t: '[ PHYS ] 物理初始化失败: ' + e.message, c: 'err' });
+      disposePhysics();   /* 发布前审查 P2：创建中途失败也须释放残留（physics/physicsMesh 不一致） */
       updatePhysMeta(null);
     }
   }).catch(() => {
@@ -1370,7 +1371,7 @@ function updateActionUI() {
  * 弹窗分别选择 动作/镜头/音乐，组合播放；不写 manifest、不重启
  * ============================================================ */
 let importSeq = 0;   /* 导入动作的临时 id 序号 */
-const importPicked = { motion: null, cam: null, music: null };   /* 本次弹窗已选文件 */
+let importPicked = { motion: null, cam: null, music: null, motionClip: null, camClip: null };   /* 本次弹窗已选文件（openImportModal 整体重建） */
 
 let importMode = 'import';   /* 'import' 新导入 | 'edit' 编辑已有动作（加音乐/镜头） */
 let editTarget = null;       /* 编辑模式的目标动作对象 */
@@ -1378,7 +1379,9 @@ let editTarget = null;       /* 编辑模式的目标动作对象 */
 function openImportModal(target) {
   importMode = target ? 'edit' : 'import';
   editTarget = target || null;
-  importPicked.motion = importPicked.cam = importPicked.music = null;
+  /* 修复(P1, 2026-08-16 发布前审查)：整体重建 importPicked——旧 motionClip/camClip 跨次
+   * 打开残留会导致"只选动作却继承上次镜头"（相机被接管、controls 锁死） */
+  importPicked = { motion: null, cam: null, music: null, motionClip: null, camClip: null };
   document.getElementById('import-modal-title').textContent = importMode === 'edit'
     ? '编辑动作：' + target.name
     : '导入动作';
@@ -1418,10 +1421,15 @@ function doImport() {
     if (!p.motion && !p.cam && !p.music) { appendLine({ t: '编辑：未选择任何修改项', c: 'warn' }); return; }
     appendLine({ t: '动作：更新 ' + a.name + ' …', c: 'dim' });
     const tasks = [];
-    if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { a.motionClip = r.clip; a.file = null; }));
-    if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { a.camClip = r.clip; }));
+    if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionIsCam = r.isCam; p.motionClip = r.clip; }));
+    if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { p.camIsCam = r.isCam; p.camClip = r.clip; }));
     if (p.music)  a.bgm = URL.createObjectURL(p.music);
     Promise.all(tasks).then(() => {
+      /* 类型校验（与导入分支一致） */
+      if (p.motion && p.motionIsCam) { appendLine({ t: '编辑：所选"动作"文件是相机动作，请放入镜头槽', c: 'err' }); return; }
+      if (p.cam && !p.camIsCam) { appendLine({ t: '编辑：所选"镜头"文件是骨骼动作，请放入动作槽', c: 'err' }); return; }
+      if (p.motion) { a.motionClip = p.motionClip; a.file = null; }
+      if (p.cam) a.camClip = p.camClip;
       closeImportModal();
       const what = [p.motion ? '动作' : '', p.cam ? '镜头' : '', p.music ? '音乐' : ''].filter(Boolean).join('/');
       appendLine({ t: '动作：' + a.name + ' 已更新（' + what + '）', c: 'ok' });
@@ -1435,9 +1443,12 @@ function doImport() {
   if (!p.motion && !p.cam) { appendLine({ t: '导入：请至少选择一个动作或镜头文件', c: 'warn' }); return; }
   appendLine({ t: '动作：解析导入文件 …', c: 'dim' });
   const tasks = [];
-  if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionClip = r.clip; p.motionCam = r.isCam; }));
+  if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionClip = r.clip; p.motionIsCam = r.isCam; }));
   if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { p.camClip = r.clip; p.camIsCam = r.isCam; }));
   Promise.all(tasks).then(() => {
+    /* 类型校验（发布前审查 P2）：动作槽必须是骨骼动作、镜头槽必须是相机动作，防止串味 */
+    if (p.motion && p.motionIsCam) { appendLine({ t: '导入：所选"动作"文件是相机动作，请放入镜头槽', c: 'err' }); return; }
+    if (p.cam && !p.camIsCam) { appendLine({ t: '导入：所选"镜头"文件是骨骼动作，请放入动作槽', c: 'err' }); return; }
     /* 临时动作对象：会话级，刷新后消失 */
     const base = p.motion ? (p.motion.name || 'motion').replace(/\.vmd$/i, '') : '镜头';
     const id = 'import' + (++importSeq);

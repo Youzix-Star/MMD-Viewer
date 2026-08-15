@@ -1,7 +1,7 @@
 # 📜 CHANGE · 变更记录
 
 > 项目演进完整档案。姊妹文档：
-> [`PHYSICS.md`](PHYSICS.md)（物理方案与参数）· [`DEVLOG.md`](DEVLOG.md)（开发者交流）· [`ISSUES.md`](ISSUES.md)（问题清单）
+> 姊妹文档：[`PHYSICS.md`](PHYSICS.md)（物理方案与参数）· DEVLOG.md / ISSUES.md（内部手账与问题清单，不随仓库分发）
 
 ---
 
