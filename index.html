@@ -362,9 +362,9 @@
   #btn-reset:active { background: var(--surface2); }
   #btn-reset .material-icons { font-size: 20px; }
 
-  /* ===== 窄屏适配：HUD 移到左下（日志卡上方），避免与 PHYS 卡重叠吞点击（历史遗留） ===== */
+  /* ===== 窄屏适配：仅 PHYS 卡宽度兜底（防 <284px 视口溢出）。
+   * 曾尝试把 HUD 移到左下避让 PHYS 重叠，用户决定恢复左上角原布局（2026-08-15 回滚） ===== */
   @media (max-width: 520px) {
-    #hud { left: 16px; right: auto; top: auto; bottom: 76px; }
     #phys-panel { width: min(252px, calc(100vw - 32px)); }
   }
 </style>
