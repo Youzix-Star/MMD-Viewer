@@ -5,8 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MMD 白模查看器</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
+  /* Material Icons 本地化（历史遗留：依赖 Google CDN，国内网络常被墙，图标渲染为文字残形） */
+  @font-face {
+    font-family: 'Material Icons';
+    font-style: normal;
+    font-weight: 400;
+    src: url('./vendor/fonts/MaterialIcons-Regular.woff2') format('woff2');
+  }
+  .material-icons {
+    font-family: 'Material Icons', 'MaterialIcons-Regular', sans-serif;
+    font-weight: normal; font-style: normal;
+    font-size: 24px; line-height: 1; letter-spacing: normal;
+    text-transform: none; display: inline-block; white-space: nowrap;
+    word-wrap: normal; direction: ltr; -webkit-font-smoothing: antialiased;
+  }
   :root {
     --bg: #eef2f7;            /* 页面背景（浅灰蓝） */
     --surface: #ffffff;       /* 卡片表面（白） */
@@ -44,6 +57,8 @@
   #appbar .ab-icon { font-size: 22px; color: var(--primary); }
   #appbar .ab-title { font-size: 15px; font-weight: 500; letter-spacing: .5px; color: var(--text); }
   #appbar .ab-spacer { flex: 1; }
+  /* 历史遗留：长模型名换行被 52px 高 AppBar 裁切——溢出省略 */
+  #appbar .ab-title, #appbar .ab-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   #appbar .ab-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
   #appbar .ab-status b { color: var(--text); font-weight: 500; }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
@@ -107,6 +122,7 @@
     flex: 1; -webkit-appearance: none; appearance: none; height: 3px; border-radius: 2px;
     background: linear-gradient(to right, var(--primary) var(--fill,50%), #dbe3ec var(--fill,50%));
     outline: none;
+    font-size: 16px;   /* 历史遗留：继承 12px 触发 iOS 聚焦自动放大页面 */
   }
   .pp-range::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
@@ -250,7 +266,7 @@
     border: 1px solid var(--line);
     border-radius: var(--r-md);
     box-shadow: var(--elev-1);
-    padding: 8px 12px;
+    padding: 8px 14px;   /* 与 HUD/PHYS 头部水平对齐（历史遗留：曾为 12px 致三卡左缘不齐） */
     font-size: 12px;
     z-index: 15;   /* 固定底层，不参与 HUD/PHYS 置顶争抢 */
     pointer-events: none;
@@ -317,7 +333,7 @@
     width: 26px; height: 26px;
     color: var(--dim); cursor: pointer; border-radius: 8px;
   }
-  .log-modal-actions span:hover { background: var(--surface2); color: #c62828; }
+  .log-modal-actions span:hover { background: var(--primary); color: #fff; }  /* 历史遗留：曾用浅底红字，与 button 视觉不统一 */
   .log-modal-actions .material-icons { font-size: 16px; }
   .log-modal-body {
     flex: 1; overflow-y: auto; padding: 10px 16px;
@@ -346,7 +362,11 @@
   #btn-reset:active { background: var(--surface2); }
   #btn-reset .material-icons { font-size: 20px; }
 
-  /* ===== 操作提示（已移除） ===== */
+  /* ===== 窄屏适配：HUD 移到左下（日志卡上方），避免与 PHYS 卡重叠吞点击（历史遗留） ===== */
+  @media (max-width: 520px) {
+    #hud { left: 16px; right: auto; top: auto; bottom: 76px; }
+    #phys-panel { width: min(252px, calc(100vw - 32px)); }
+  }
 </style>
 </head>
 <body>
@@ -485,10 +505,12 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/ammo.wasm.js"></script>
 <script>
 
-  /* P1-3：全局错误兜底——module import 失败 / CDN 资源失败时显示可见错误条，不再静默黑屏 */
+  /* P1-3：全局错误兜底——module import 失败 / CDN 资源失败时显示可见错误条，不再静默黑屏。
+   * 历史遗留：<link> 样式表（Google Fonts）失败也弹致命条，但字体有回退栈、App 仍可用——只拦 script/img */
   window.addEventListener('error', function (e) {
     if (document.getElementById('fatal-error')) return;
     var t = e.target || {};
+    if (t.tagName && (t.tagName === 'LINK' || t.tagName === 'STYLE')) return;   /* 样式表失败不致命（字体有回退） */
     var src = t.src || t.href;
     var msg = e.message || (src ? '资源加载失败: ' + src : '未知错误');
     var el = document.createElement('div');
@@ -510,7 +532,7 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { MMDLoader } from './vendor/MMDLoader.js';  /* v2: 本地版（透传骨骼 flag，见 vendor/MMDLoader.js:656） */
+import { MMDLoader } from './vendor/MMDLoader.js';  /* 本地版：与 three r160 官方一致（曾加"骨骼 flag 透传"但无消费方，已移除，见 CHANGE.md） */
 import { MMDPhysics } from 'three/addons/animation/MMDPhysics.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -576,7 +598,15 @@ function appendLine(line) {
     .replace(/\s*\.{3,}\s*$/, '');
   const div = document.createElement('div');
   div.className = 'log-item ' + c;
-  div.innerHTML = '<i class="material-icons">' + icon + '</i><span>' + text + '</span>';
+  /* 安全构造（历史遗留：innerHTML 拼接模型名/错误消息，含不可信文本时有注入风险；
+   * 与弹窗 makeLogItem 的 textContent 防护保持一致） */
+  const iEl = document.createElement('i');
+  iEl.className = 'material-icons';
+  iEl.textContent = icon;
+  const sEl = document.createElement('span');
+  sEl.textContent = text;
+  div.appendChild(iEl);
+  div.appendChild(sEl);
   logEl.appendChild(div);
   while (logEl.children.length > 4) logEl.removeChild(logEl.firstChild);
   /* 弹窗打开时实时追加 */
@@ -702,7 +732,12 @@ function setupSway(mesh, mmd) {
 
   const find = name => bones.findIndex(b => b.name === name);
   let rootIdx = find('センター');
-  if (rootIdx < 0) rootIdx = 0;   /* 兜底：根骨骼 */
+  if (rootIdx < 0) {
+    /* 兜底：优先选未绑定动态刚体的骨骼（历史遗留：直接退到 bones[0]，
+     * 若该骨绑定了 type1/2 刚体会被物理回写覆盖/驱动抖动） */
+    rootIdx = bones.findIndex((b, i) => !dynamic.has(i));
+    if (rootIdx < 0) rootIdx = 0;
+  }
   sway = {
     root: bones[rootIdx],
     rootBase: bones[rootIdx].quaternion.clone(),
@@ -762,7 +797,6 @@ function applyWind(t) {
   if (!physics) return;
   if (!_windV) _windV = new Ammo.btVector3(0, 0, 0);
   const ang = getWindAngle(t);
-  windAngleNow = ang * 180 / Math.PI;
   const gust = 0.7 + 0.3 * Math.sin(t * 0.9) * Math.sin(t * 0.31);      /* 阵风波动（只影响强度） */
   const f = 98 * physCfg.wind * gust;   /* 98 = MMD 重力加速度（与重力同量纲） */
   const fx = Math.sin(ang) * f, fz = Math.cos(ang) * f;   /* 0°=朝 +Z（观众方向），90°=朝 +X */
@@ -927,6 +961,7 @@ function setWindArrowAlpha(a) {
 setWindArrowAlpha(physCfg.windOn ? 0.85 : 0.25);   /* 风开实色 / 风关半透明指示 */
 windArrow.visible = physCfg.arrow;                  /* 风向标显示开关（PHYS 面板可调） */
 scene.add(windArrow);   /* 挂入场景（曾因重构遗漏导致箭头不可见） */
+const _windDir = new THREE.Vector3();   /* 每帧箭头方向复用（历史遗留：每帧 new Vector3 造成 GC 抖动） */
 let windArrowAnchor = new THREE.Vector3(0, 1.5, 0);   /* 箭头中心锚点（模型正上方），position 每帧按风向偏移半长 */
 
 
@@ -990,16 +1025,16 @@ function onModelLoaded(mesh) {
   group.add(mesh);
   mmdMesh = mesh;
 
-  /* 装饰元素（地面网格/环绕线环）按模型高度等比缩放，模型本身保持 scale=1 */
-  if (s > 0 && s !== 1) {
-    grid.scale.setScalar(s);
-    ring.scale.setScalar(s);
-  }
+  /* 装饰元素（地面网格/环绕线环）按模型高度等比缩放，模型本身保持 scale=1。
+   * 无条件赋值（历史遗留：s!==1 守卫在 s 恰为 1 时保留上一模型的缩放残留） */
+  grid.scale.setScalar(s);
+  ring.scale.setScalar(s);
 
-  /* 相机适配：模型不再缩放，改为让相机看整个模型 */
+  /* 相机适配：模型不再缩放，改为让相机看整个模型。
+   * far 按当前模型重算（历史遗留：Math.max 只增不减，加载过巨型模型后小模型深度精度浪费） */
   const viewDist = size.y * 1.5 + 4;
   camera.position.set(0, size.y * 0.6, viewDist);   /* x=0：正对模型正面 */
-  camera.far = Math.max(camera.far, viewDist * 3);
+  camera.far = Math.max(50, viewDist * 3);
   camera.updateProjectionMatrix();
   controls.target.set(0, size.y * 0.5, 0);
   /* P3-4：新 min/max 边界确保包含当前相机距离，避免 update() 瞬间 clamp 造成变焦突变 */
@@ -1042,12 +1077,18 @@ function showModelPanel() {
 }
 
 /* 加载清单模型：直接走 MMDLoader.load（与白模同一验证路径，纹理目录由 extractUrlBase 自动解析） */
+let loadSeq = 0;   /* 模型加载序号：防"慢模型后完成覆盖新模型"竞态（历史遗留，已修复） */
 function loadServerModel(m) {
   modelPanel.classList.remove('show');
+  const seq = ++loadSeq;
   appendLine({ t: '加载模型: ' + m.name, c: 'dim' });
   modelLabel = m.name;
   currentId = m.id;
-  loader.load(m.file, onModelLoaded, function () {}, function (err) {
+  loader.load(m.file, mesh => {
+    if (seq !== loadSeq) { disposeModel(mesh); return; }   /* 过期加载：释放 GPU 资源，不显示 */
+    onModelLoaded(mesh);
+  }, function () {}, function (err) {
+    if (seq !== loadSeq) return;   /* 过期加载的错误不打扰当前状态 */
     console.error(err);
     appendLine({ t: '模型加载失败: ' + err, c: 'err' });
   });
@@ -1064,7 +1105,13 @@ async function initModels() {
       const btn = document.createElement('button');
       btn.className = 'mp-item';
       btn.dataset.id = m.id;
-      btn.innerHTML = m.name + (m.note ? '<span class="mp-note">' + m.note + '</span>' : '');
+      btn.appendChild(document.createTextNode(m.name));   /* 安全构造：模型名来自 manifest，textContent 防注入 */
+      if (m.note) {
+        const note = document.createElement('span');
+        note.className = 'mp-note';
+        note.textContent = m.note;
+        btn.appendChild(note);
+      }
       btn.addEventListener('click', () => loadServerModel(m));
       modelList.appendChild(btn);
     }
@@ -1145,6 +1192,7 @@ function windDialAngle(e) {
   return Math.atan2(dx, -dy) * 180 / Math.PI;   /* 屏幕 y 向下，取负转成"上=0° 顺时针" */
 }
 windDial.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;   /* 仅左键（历史遗留：右键拖动也会改风向） */
   windDragging = true;
   windDial.setPointerCapture(e.pointerId);
   physCfg.windAngle = ((windDialAngle(e) % 360) + 360) % 360;
@@ -1158,6 +1206,7 @@ windDial.addEventListener('pointermove', e => {
 });
 windDial.addEventListener('pointerup', () => { windDragging = false; savePhysCfg(); });
 windDial.addEventListener('pointercancel', () => { windDragging = false; savePhysCfg(); });
+windDial.addEventListener('lostpointercapture', () => { windDragging = false; });   /* 历史遗留：失焦丢捕获时 pointerup 不触发，拖拽态残留 */
 
 windAutoOn.addEventListener('change', e => {
   physCfg.windAuto = e.target.checked;
@@ -1210,6 +1259,9 @@ document.getElementById('phys-reset').addEventListener('click', () => {
   appendLine({ t: '[ PHYS ] 物理已重置', c: 'ok' });
 });
 
+/* 恢复默认：resetPhysSettings 此前从未绑定（v3 整合遗漏）——恢复默认按钮失效修复 */
+document.getElementById('phys-defaults').addEventListener('click', resetPhysSettings);
+
 /* 风向标（3D 箭头）显示开关 */
 document.getElementById('phys-arrow-on').addEventListener('change', e => {
   physCfg.arrow = e.target.checked;
@@ -1250,6 +1302,9 @@ function syncPhysUI() {
   setRangeVal('wind-power', physCfg.wind * 100);
   updateWindUI();
   setWindArrowAlpha(physCfg.windOn ? 0.85 : 0.25);
+  /* 同步运行时对象（历史遗留：只同步复选框、漏同步控件，导致 localStorage 恢复后 UI 与行为不一致） */
+  windArrow.visible = physCfg.arrow;
+  if (controls) controls.autoRotate = physCfg.autoRotate;
 }
 
 /* 恢复默认设置：重置全部参数 + 同步控件 UI + 物理立即生效（无需重建） */
@@ -1268,10 +1323,6 @@ function resetPhysSettings() {
   appendLine({ t: '[ PHYS ] 已恢复默认设置', c: 'ok' });
 }
 
-/* 启动：读取清单并加载默认模型 */
-initModels();
-
-
 /* ---------- 交互：OrbitControls（阻尼惯性 + 自动旋转） ---------- */
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 3.5, 0);
@@ -1283,6 +1334,11 @@ controls.maxPolarAngle = Math.PI * 0.55;  /* 俯仰限制，避免翻到地面�
 controls.autoRotate = physCfg.autoRotate;  /* PHYS：应用持久化/默认的自动旋转状态 */
 controls.autoRotateSpeed = 1.2;
 controls.update();
+
+/* 启动：读取清单并加载默认模型。
+ * 历史遗留：原在 controls 声明前调用，正确性依赖"加载必然异步"的隐含契约，
+ * onModelLoaded 引用 controls；移到 controls 之后消除顺序隐患。 */
+initModels();
 
 /* PHYS-5b：启动时恢复上次保存的参数（localStorage） */
 try {
@@ -1311,22 +1367,41 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 1 / 30);  /* PHYS-3：限幅最大步长，防掉帧/切后台时 Bullet 爆炸 */
   const t = clock.elapsedTime;
 
-  /* PHYS-4：物理每帧流程 = 待机摇摆 → 微风施力 → 刷骨骼世界矩阵 → 解算并回写骨骼 */
+  /* PHYS-4：物理每帧流程 = 待机摇摆 → 微风施力 → 刷骨骼世界矩阵 → 解算并回写骨骼。
+   * 摇摆是骨骼动画、不依赖物理：曾置于物理门控内（物理关闭时摇摆失效），已外移；
+   * 关闭摇摆时写回基准姿态（历史遗留：关闭后残留最后一帧倾斜）。 */
+  if (physCfg.sway && sway) {
+    applySway(t);
+  } else if (sway) {
+    sway.root.quaternion.copy(sway.rootBase);
+    if (sway.upper) sway.upper.quaternion.copy(sway.upperBase);
+  }
   if (physics && physicsMesh && physCfg.enabled) {
-    if (physCfg.sway) applySway(t);
     if (physCfg.windOn && physCfg.wind > 0) applyWind(t);
     physicsMesh.updateMatrixWorld(true);
     const tPhys = performance.now();
-    physics.update(dt);
+    try {
+      physics.update(dt);
+    } catch (e) {
+      /* 历史遗留：Bullet 异常（如 NaN 传播）会中断 rAF 循环、整页冻结；出错时暂停物理、保住渲染 */
+      console.error('物理解算异常，已暂停物理:', e);
+      appendLine({ t: '[ PHYS ] 物理解算异常，已暂停（' + e.message + '）', c: 'err' });
+      physCfg.enabled = false;
+      document.getElementById('phys-on').checked = false;
+      savePhysCfg();
+    }
     physMs = physMs * 0.9 + (performance.now() - tPhys) * 0.1;   /* 滑动平均 */
   } else {
     physMs = 0;
   }
-  /* 每帧刷新风向圆盘指针 + 3D 风向箭头（与物理施力共用 getWindAngle） */
+  /* 每帧刷新风向圆盘指针 + 3D 风向箭头（与物理施力共用 getWindAngle）。
+   * windAngleNow 在此无条件更新（历史遗留：曾只在 applyWind 内赋值，被物理门控短路，
+   * 导致物理关闭/无刚体时圆盘指针冻结、与仍扫动的 3D 箭头不一致） */
+  windAngleNow = getWindAngle(t) * 180 / Math.PI;
   updateWindUI();
   const wa = getWindAngle(t);
   const wx = Math.sin(wa), wz = Math.cos(wa);
-  windArrow.setDirection(new THREE.Vector3(wx, 0, wz));
+  windArrow.setDirection(_windDir.set(wx, 0, wz));
   /* 中心对齐：位置 = 锚点 - 方向 × 半长（箭头中点落在锚点，风向转时绕中心转） */
   const halfLen = 1.1 * windArrow.scale.x;   /* 总长 2.2 × 模型缩放 / 2 */
   windArrow.position.set(windArrowAnchor.x - wx * halfLen, windArrowAnchor.y, windArrowAnchor.z - wz * halfLen);
@@ -1375,8 +1450,9 @@ const hudEl = document.getElementById('hud');
 if (hudEl) {
   const hudTg = hudEl.querySelector('.hud-toggle');
   hudEl.querySelector('.hud-head').addEventListener('click', () => {
+    const wasMin = hudEl.classList.contains('min');
     hudEl.classList.toggle('min');
-    raiseCardTop(hudEl);  /* 点击即置顶 */
+    if (wasMin) raiseCardTop(hudEl);   /* 仅展开时置顶（历史遗留：折叠时也置顶，与 PHYS 不对称） */
     hudTg.innerHTML = hudEl.classList.contains('min')
       ? '<i class="material-icons">expand_more</i>'
       : '<i class="material-icons">expand_less</i>';

@@ -15,7 +15,7 @@
     → Ammo().then(lib => { Ammo = lib })                          ← 异步就绪（模型加载可并行，ammoReady Promise 排队）
 
 import { MMDPhysics } from 'three/addons/animation/MMDPhysics.js' ← CDN，与 three 0.160 同版本
-import { MMDLoader } from './vendor/MMDLoader.js'                 ← 本地版（透传骨骼 flag，勿换回官方版）
+import { MMDLoader } from './vendor/MMDLoader.js'                 ← 本地版（与官方 r160 一致；曾加的"骨骼 flag 透传"无消费方，2026-08-15 已移除）
 
 mesh.geometry.userData.MMD = { bones, iks, grants, rigidBodies, constraints }
     → new MMDPhysics(mesh, mmd.rigidBodies, mmd.constraints, { unitStep, maxStepNum, gravity })
@@ -34,7 +34,7 @@ mesh.geometry.userData.MMD = { bones, iks, grants, rigidBodies, constraints }
 
 ## 3. 参数调校系统（本项目的核心价值）
 
-所有参数在 PHYS 面板可调，`physCfg` 单对象 + `localStorage` 持久化（`savePhysCfg()` 15 个调用点）+ "恢复默认"（`PHYS_DEFAULTS`）。
+所有参数在 PHYS 面板可调，`physCfg` 单对象 + `localStorage` 持久化（`savePhysCfg()` 17 个调用点）+ "恢复默认"（`PHYS_DEFAULTS`，2026-08-15 修复：该按钮此前从未绑定监听）。
 
 | 参数 | 默认 | 作用 |
 |---|---|---|

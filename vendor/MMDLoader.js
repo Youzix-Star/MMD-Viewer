@@ -653,7 +653,6 @@ class GeometryBuilder {
 				pos: boneData.position.slice( 0, 3 ),
 				rotq: [ 0, 0, 0, 1 ],
 				scl: [ 1, 1, 1 ],
-				flag: boneData.flag || 0,		/* v2: 透传 PMX 骨骼标志（0x1000 = TransformAfterPhysics 物理後変形） */
 				rigidBodyType: boneTypeTable[ i ] !== undefined ? boneTypeTable[ i ] : - 1
 			};
 

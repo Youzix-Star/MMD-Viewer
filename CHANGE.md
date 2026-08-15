@@ -219,4 +219,37 @@
 
 ---
 
+## 🔧 2026-08-15 · 历史遗留修复（启明首轮）
+
+> 审查：3 个并行子代理（JS 逻辑 / CSS-UI / vendor-部署）+ 静态检查（语法、资源 404、CDN 可达）。
+> 完整条目见 `docs-archive/ISSUES.md`，此处记代码层变更。
+
+### 功能修复（P1/P2）
+
+- **恢复默认按钮失效**：`phys-defaults` 从未绑定监听（v3 整合遗漏），`resetPhysSettings` 死代码 → 补绑定
+- **模型切换竞态**：慢模型后完成覆盖新模型 → `loadSeq` 加载序号 + 过期加载 dispose 丢弃
+- **syncPhysUI 漏同步**：`controls.autoRotate`（已知）+ `windArrow.visible`（新发现）→ 补同步
+- **风向圆盘冻结**：`windAngleNow` 从 `applyWind`（被物理门控）移入 animate 每帧无条件更新
+- **iOS 滑块聚焦放大**：`.pp-range` 设 `font-size:16px`
+- **窄屏 HUD/PHYS 重叠**：`@media (max-width:520px)` HUD 移到左下 + PHYS 宽度 `min()` 兜底
+- **Material Icons 本地化**：`vendor/fonts/MaterialIcons-Regular.woff2` + `@font-face`，移除 Google Icons link（防墙）
+
+### 健壮性（P3）
+
+- grid/ring 缩放 `s!==1` 残留 → 无条件赋值；`camera.far` 只增不减 → 按模型重算
+- `appendLine`/`mp-item` innerHTML → textContent 安全构造（防注入）
+- wind-dial 补 `lostpointercapture` + 左键过滤；sway 兜底优先无刚体骨骼
+- 摇摆移出物理门控（关闭时仍可用）+ 关闭写回基准姿态；`physics.update` try/catch 兜底
+- 每帧 `_windDir` 复用；`initModels()` 移到 controls 之后（消顺序隐患）
+- 全局错误条跳过 LINK 误报；AppBar 溢出省略；三卡 padding 统一；modal hover 统一；HUD 折叠不置顶
+- **vendor/MMDLoader.js 删除骨骼 flag 透传**（无消费方的死数据，与官方 r160 恢复一致）；import 注释、PHYSICS.md 说法同步修正
+
+### 文档同步
+
+- README：`cd miku` → `cd MMD-Viewer`；"单文件应用"→"主应用"；目录树补 CHANGE/LICENSE/fonts
+- PHYSICS.md：savePhysCfg 调用点 15→17；flag 透传说法修正；恢复默认按钮修复标注
+- ISSUES.md：行号漂移修正 + 已修复条目回写 + 本轮完整记录
+
+---
+
 *记录由启明维护。改动请及时归档，保持"每一步都有据可查"。*

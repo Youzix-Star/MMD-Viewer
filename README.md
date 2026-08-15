@@ -7,7 +7,7 @@
 ## 快速开始
 
 ```bash
-cd miku
+cd MMD-Viewer
 python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
@@ -31,11 +31,13 @@ python3 -m http.server 8000 --bind 0.0.0.0
 ## 目录结构
 
 ```
-miku/
-├── index.html        # 单文件应用
+MMD-Viewer/
+├── index.html        # 主应用（2026-08-13 拆分后已非单文件，依赖 vendor/ 与 manifest.json）
 ├── manifest.json     # 模型清单
+├── CHANGE.md         # 变更记录
+├── LICENSE           # AGPLv3
 ├── PHYSICS.md        # 物理方案与参数说明
-├── vendor/           # 本地化 three 模块（MMDLoader 等）
+├── vendor/           # 本地化 three 模块（MMDLoader 等）+ fonts/（Material Icons 自托管）
 ├── source/           # 源项目（陌袹陌提供）
 │   └── console-white-mmd.html
 └── models/           # 模型包（.pmx + 贴图）
