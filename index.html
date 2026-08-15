@@ -769,7 +769,6 @@ scene.add(ring);
 
 /* ---------- 模型加载 ---------- */
 let mmdMesh = null;  /* 加载后的模型（待机动画用） */
-let restPose = null; /* 模型加载时的骨骼绑定姿势快照（复位用，2026-08-16） */
 
 function raiseCardTop(el) {
   document.querySelectorAll('#hud, #phys-panel').forEach(c => {
@@ -1119,9 +1118,6 @@ function onModelLoaded(mesh) {
 
   group.add(mesh);
   mmdMesh = mesh;
-  /* 绑定姿势快照（2026-08-16 修复アイドル 复位斜）：物理创建前骨骼即绑定姿势，
-   * 保存 position/quaternion/scale——复位时直接恢复，比 pose()（boneInverses 计算）+ sway 复合更彻底 */
-  restPose = mesh.skeleton.bones.map(b => ({ p: b.position.clone(), q: b.quaternion.clone(), s: b.scale.clone() }));
 
   /* 装饰元素（地面网格/环绕线环）按模型高度等比缩放，模型本身保持 scale=1。
    * 无条件赋值（历史遗留：s!==1 守卫在 s 恰为 1 时保留上一模型的缩放残留） */
@@ -1247,18 +1243,7 @@ function stopAction() {
  * "末帧姿态"跳变到第 0 帧（骨骼/morph/刚体状态不一致）导致诡异（2026-08-15 用户反馈） */
 function resetPose() {
   if (!mmdMesh) return;
-  /* 修复(2026-08-16)：アイドル 动作センター 611 帧全带位置位移，复位必须彻底回绑定姿势——
-   * 用加载时快照直接恢复（position/quaternion/scale），比 pose() 更可靠 */
-  if (restPose) {
-    const bones = mmdMesh.skeleton.bones;
-    for (let i = 0; i < bones.length && i < restPose.length; i++) {
-      const r = restPose[i];
-      bones[i].position.copy(r.p);
-      bones[i].quaternion.copy(r.q);
-      bones[i].scale.copy(r.s);
-    }
-    mmdMesh.updateMatrixWorld(true);
-  } else if (mmdMesh.pose) {
+  if (mmdMesh.pose) {
     mmdMesh.pose();
     mmdMesh.updateMatrixWorld(true);
   }
