@@ -1148,10 +1148,26 @@ function stopAction() {
   updateActionUI();
 }
 
+/* 复位人物姿态（播放动作前 / 复位按钮共用）：
+ * 骨骼回绑定姿势 + morph 清零 + 物理刚体重贴——上次舞蹈停在末帧时，不复位直接再播会从
+ * "末帧姿态"跳变到第 0 帧（骨骼/morph/刚体状态不一致）导致诡异（2026-08-15 用户反馈） */
+function resetPose() {
+  if (!mmdMesh) return;
+  if (mmdMesh.pose) {
+    mmdMesh.pose();
+    mmdMesh.updateMatrixWorld(true);
+  }
+  if (mmdMesh.morphTargetInfluences) {
+    for (let i = 0; i < mmdMesh.morphTargetInfluences.length; i++) mmdMesh.morphTargetInfluences[i] = 0;
+  }
+  if (physics) { physics.reset(); physics.warmup(30); }
+}
+
 function playAction(a) {
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
   if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
   stopAction();
+  resetPose();   /* 播放前复位动作姿态（用户要求 2026-08-15：避免末帧残留导致再播诡异） */
   const h = ensureActionHelper();
   const doPlay = clip => {
     if (a.camera) {
@@ -1600,16 +1616,7 @@ const btnReset = document.getElementById('btn-reset');
 if (btnReset) btnReset.addEventListener('click', () => {
   /* 复位 = 视角 + 人物姿态 + 物理（2026-08-15 用户要求：不只视角，动作也要复位） */
   if (currentAction) stopAction();              /* 停止动作（含 BGM） */
-  if (mmdMesh) {
-    if (mmdMesh.pose) {                          /* 骨骼回绑定姿势 */
-      mmdMesh.pose();
-      mmdMesh.updateMatrixWorld(true);
-    }
-    if (mmdMesh.morphTargetInfluences) {         /* morph 清零（动作残留的表情） */
-      for (let i = 0; i < mmdMesh.morphTargetInfluences.length; i++) mmdMesh.morphTargetInfluences[i] = 0;
-    }
-  }
-  if (physics) { physics.reset(); physics.warmup(30); }   /* 刚体重贴骨骼并落定 */
+  resetPose();                                  /* 姿态 + morph + 物理（与播放前复位共用） */
   if (homeCam) {
     camera.position.copy(homeCam.pos);
     controls.target.copy(homeCam.target);
