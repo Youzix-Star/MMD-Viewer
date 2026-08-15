@@ -1103,7 +1103,9 @@ function showModelPanel() {
  * ============================================================ */
 const ACTIONS = [
   { id: 'dance', name: 'numb numb', file: 'models/numb_numb/numb_numb_motion.vmd', bgm: 'models/numb_numb/NumbNumb.wav' },
-  { id: 'iris',  name: 'IRIS OUT',  file: 'models/IRIS_OUT/IRIS OUT.vmd',           bgm: 'models/IRIS_OUT/IRIS OUT.wav' }
+  { id: 'iris',  name: 'IRIS OUT',  file: 'models/IRIS_OUT/IRIS OUT.vmd',           bgm: 'models/IRIS_OUT/IRIS OUT.wav' },
+  { id: 'idol',  name: 'アイドル',  file: 'models/idol/Sour式/动作 Sour.vmd',        bgm: 'models/idol/アイドル-YOASOBI.wav' },
+  { id: 'idolcam', name: 'アイドル镜头', file: 'models/idol/Sour式/相机 Sour.vmd',   camera: true }
 ];
 let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
 const actionClips = {};         /* 已转换的 AnimationClip 缓存 { id: clip } */
