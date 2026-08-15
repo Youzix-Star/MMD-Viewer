@@ -405,6 +405,28 @@
   #btn-reset:active { background: var(--surface2); }
   #btn-reset .material-icons { font-size: 20px; }
 
+  /* ===== 沉浸模式按钮（2026-08-16：一键隐藏全部界面观摩） ===== */
+  #btn-immersive {
+    position: absolute; right: 16px; bottom: 64px;
+    width: 36px; height: 36px;
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    background: #fff; color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--elev-1); cursor: pointer; z-index: 25;
+    transition: all .2s var(--ease-std);
+  }
+  #btn-immersive:active { background: var(--surface2); }
+  #btn-immersive .material-icons { font-size: 20px; }
+  /* 沉浸态：隐藏全部界面，按钮缩成右上角半透明小圆点（点击恢复） */
+  body.immersive #appbar, body.immersive #hud, body.immersive #phys-panel,
+  body.immersive #model-panel, body.immersive #log, body.immersive #play-ctl,
+  body.immersive #btn-reset { display: none !important; }
+  body.immersive #btn-immersive {
+    right: 10px; bottom: auto; top: 10px; width: 26px; height: 26px;
+    border-radius: 50%; opacity: .35; background: rgba(255,255,255,.8);
+  }
+  body.immersive #btn-immersive .material-icons { font-size: 16px; }
+
   /* ===== 播放控制条（2026-08-16：日志折叠小长条上方，复位右下不动） ===== */
   #play-ctl {
     position: absolute; left: 16px; bottom: 64px;   /* 动态：每帧按日志高度调整（日志上方） */
@@ -622,6 +644,7 @@
       </div>
     </div>
     <button id="btn-reset" title="复位视角"><i class="material-icons">restart_alt</i></button>
+    <button id="btn-immersive" title="沉浸模式（隐藏全部界面）"><i class="material-icons">fullscreen</i></button>
     <!-- 播放控制条（动作播放时显示：进度拖动/倍速/快进/复位，2026-08-16） -->
     <div id="play-ctl" class="hidden">
       <div class="pc-main">
@@ -2048,6 +2071,13 @@ function animate() {
     frames = 0; lastT = now;
   }
 }
+/* 沉浸模式（2026-08-16：隐藏全部界面观摩模型/动画；按钮缩角落圆点点击恢复） */
+const btnImmersive = document.getElementById('btn-immersive');
+if (btnImmersive) btnImmersive.addEventListener('click', () => {
+  const on = document.body.classList.toggle('immersive');
+  btnImmersive.querySelector('i').textContent = on ? 'close' : 'fullscreen';
+});
+
 /* 物理开关（默认开；关闭后暂停物理模拟，裙摆/头发静止） */
 const btnReset = document.getElementById('btn-reset');
 if (btnReset) btnReset.addEventListener('click', () => {
