@@ -1114,13 +1114,24 @@ let bgmWarned = false;
 /* BGM 联动：动作带 bgm 字段时播放（loop），停止动作时暂停 */
 function playBGM(src) {
   if (!src) return;
-  if (bgmAudio) { bgmAudio.currentTime = 0; bgmAudio.play().catch(() => {}); return; }
+  if (bgmAudio) {
+    /* 修复(2026-08-16)：BGM 单例复用但未换 src——先播 A 再播 B 会一直是 A 的音乐。
+     * 换歌时更新 src 并从头播；同一首则仅重置进度 */
+    if (bgmAudio.getAttribute('src') !== src) {
+      bgmAudio.src = src;
+      bgmAudio.currentTime = 0;
+    } else {
+      bgmAudio.currentTime = 0;
+    }
+    bgmAudio.play().catch(() => {});
+    return;
+  }
   bgmAudio = new Audio(src);
   bgmAudio.loop = true;
   bgmAudio.play().catch(() => {
     if (!bgmWarned) {
       bgmWarned = true;
-      appendLine({ t: 'BGM：音频缺失或无法播放（NumbNumb.wav 不入库需本地自备；音乐版权归原唱片公司，请勿公开分发）', c: 'warn' });
+      appendLine({ t: 'BGM：音频缺失或无法播放（BGM 不入库需本地自备；音乐版权归原唱片公司，请勿公开分发）', c: 'warn' });
     }
   });
 }
