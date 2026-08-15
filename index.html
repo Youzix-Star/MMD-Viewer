@@ -361,6 +361,19 @@
   .log-modal-body .lm-item.warn { color: #e65100; }
   .log-modal-body .lm-item.err { color: #c62828; font-weight: 600; }
 
+  /* ===== 导入动作弹窗 ===== */
+  .import-card { width: min(440px, 94vw); height: auto; margin-top: 0; }
+  .import-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .import-row { display: flex; align-items: center; gap: 8px; }
+  .import-label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text); white-space: nowrap; }
+  .import-label .material-icons { font-size: 15px; color: var(--primary); }
+  .import-file {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11px; color: var(--dim); background: var(--surface2); border-radius: 6px; padding: 5px 8px;
+  }
+  .import-file.chosen { color: var(--text); }
+  .import-btn { width: auto; flex: 0 0 auto; padding: 0 12px; }
+
   /* ===== 复位视角按钮（右下角，方形卡片同款） ===== */
   #btn-reset {
     position: absolute; right: 16px; bottom: 16px;
@@ -527,6 +540,38 @@
           </span>
         </div>
         <div class="log-modal-body" id="log-modal-list"></div>
+      </div>
+    </div>
+    <!-- 导入动作弹窗（2026-08-16：动作/镜头/音乐分别选择，组合播放） -->
+    <div id="import-modal" class="hidden">
+      <div class="log-modal-card import-card">
+        <div class="log-modal-head">
+          <span class="log-modal-title"><i class="material-icons">file_open</i>导入动作 <b>临时加载，刷新后消失</b></span>
+          <span class="log-modal-actions"><span id="import-close" title="关闭（Esc）"><i class="material-icons">close</i></span></span>
+        </div>
+        <div class="import-body">
+          <div class="import-row">
+            <span class="import-label"><i class="material-icons">directions_run</i>动作</span>
+            <span class="import-file" id="import-motion-name">未选择（.vmd 骨骼动作）</span>
+            <button class="pp-reset import-btn" id="import-motion-btn">选择文件</button>
+            <input type="file" id="import-motion-file" accept=".vmd" style="display:none">
+          </div>
+          <div class="import-row">
+            <span class="import-label"><i class="material-icons">videocam</i>镜头</span>
+            <span class="import-file" id="import-cam-name">未选择（.vmd 相机动作，可选）</span>
+            <button class="pp-reset import-btn" id="import-cam-btn">选择文件</button>
+            <input type="file" id="import-cam-file" accept=".vmd" style="display:none">
+          </div>
+          <div class="import-row">
+            <span class="import-label"><i class="material-icons">music_note</i>音乐</span>
+            <span class="import-file" id="import-music-name">未选择（音频，可选）</span>
+            <button class="pp-reset import-btn" id="import-music-btn">选择文件</button>
+            <input type="file" id="import-music-file" accept=".wav,.mp3,.m4a,.ogg,.flac" style="display:none">
+          </div>
+          <div class="pp-row pp-btns" style="margin-top:14px">
+            <button class="pp-reset" id="import-ok"><i class="material-icons">play_arrow</i>导入并播放</button>
+          </div>
+        </div>
       </div>
     </div>
     <button id="btn-reset" title="复位视角"><i class="material-icons">restart_alt</i></button>
@@ -1199,22 +1244,26 @@ function playAction(a, preClip) {
   resetPose();   /* 播放前复位动作姿态（用户要求 2026-08-15：避免末帧残留导致再播诡异） */
   const h = ensureActionHelper();
   const doPlay = clip => {
-    if (a.camera) {
-      h.add(camera, { animation: clip });
+    /* 组合播放（2026-08-16 导入弹窗）：a.camClip（镜头）+ a.motionClip（动作）可同时存在 */
+    const camClip = a.camClip || (a.camera ? clip : null);
+    if (camClip) {
+      h.add(camera, { animation: camClip });
       controls.enabled = false;                 /* 镜头动画接管相机 */
       controls.autoRotate = false;
       /* 播放一次不循环（r160 AnimationAction 构造硬编码 LoopRepeat，须显式 setLoop） */
       if (h.objects.get(camera) && h.objects.get(camera).mixer) {
-        const act = h.objects.get(camera).mixer.clipAction(clip);
+        const act = h.objects.get(camera).mixer.clipAction(camClip);
         if (act) { act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = true; }
       }
-    } else {
-      h.add(mmdMesh, { animation: clip, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
+    }
+    const meshClip = a.motionClip || (!a.camera ? clip : null);
+    if (meshClip) {
+      h.add(mmdMesh, { animation: meshClip, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
       /* 播放一次不循环：mixer.clipAction 返回 helper 已创建的同一 action，
        * 直接设置 loop（r160 AnimationAction 构造硬编码 LoopRepeat，clip.loop 无效） */
       const objs = h.objects.get(mmdMesh);
       if (objs && objs.mixer) {
-        const action = objs.mixer.clipAction(clip);
+        const action = objs.mixer.clipAction(meshClip);
         if (action) { action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play(); }
         /* 播放结束（LoopOnce 播完）→ 自动停止动作。
          * 关键：finished 在 helper._animateMesh 的 mixer.update() 内部同步触发，
@@ -1237,7 +1286,8 @@ function playAction(a, preClip) {
     appendLine({ t: '动作：' + a.name + ' 播放中（一次；再点停止；播放期间待机摇摆暂停）', c: 'ok' });
     updateActionUI();
   };
-  if (preClip) { actionClips[a.id] = preClip; doPlay(preClip); return; }   /* 导入路径：clip 已生成，直接播放 */
+  if (a.imported && (a.motionClip || a.camClip)) { doPlay(); return; }   /* 导入组合（clip 已在弹窗生成） */
+  if (preClip) { actionClips[a.id] = preClip; doPlay(preClip); return; }   /* 直接播放（clip 已生成） */
   if (actionClips[a.id]) { doPlay(actionClips[a.id]); return; }
   appendLine({ t: '动作：加载 ' + a.name + ' …', c: 'dim' });
   /* 修复(2026-08-15)：r160 MMDAnimationHelper 直接吃 AnimationClip，不吃 VMD 原始数据——
@@ -1284,48 +1334,82 @@ function updateActionUI() {
 
 /* ============================================================
  * 浏览器导入 VMD 临时加载动作（2026-08-16 用户需求）：
- * 不写 manifest、不重启——选文件即解析并播放
+ * 弹窗分别选择 动作/镜头/音乐，组合播放；不写 manifest、不重启
  * ============================================================ */
 let importSeq = 0;   /* 导入动作的临时 id 序号 */
+const importPicked = { motion: null, cam: null, music: null };   /* 本次弹窗已选文件 */
 
-function importActionFile(file) {
-  if (!mmdMesh) { appendLine({ t: '动作：请先加载模型再导入', c: 'warn' }); return; }
-  appendLine({ t: '动作：读取 ' + file.name + ' …', c: 'dim' });
-  file.arrayBuffer().then(ab => {
-    let vmd;
-    try {
-      vmd = loader.parser.parseVmd(ab, false);
-    } catch (e) {
-      console.error(e);
-      appendLine({ t: '动作：' + file.name + ' 解析失败（非 VMD 文件?）: ' + e.message, c: 'err' });
-      return;
-    }
+function openImportModal() {
+  importPicked.motion = importPicked.cam = importPicked.music = null;
+  document.getElementById('import-motion-name').textContent = '未选择（.vmd 骨骼动作）';
+  document.getElementById('import-cam-name').textContent = '未选择（.vmd 相机动作，可选）';
+  document.getElementById('import-music-name').textContent = '未选择（音频，可选）';
+  ['motion', 'cam', 'music'].forEach(k => document.getElementById('import-' + k + '-name').classList.remove('chosen'));
+  document.getElementById('import-modal').classList.remove('hidden');
+}
+function closeImportModal() { document.getElementById('import-modal').classList.add('hidden'); }
+
+/* 解析 VMD 为 clip（相机/动作自动识别） */
+function vmdFileToClip(file, mesh) {
+  return file.arrayBuffer().then(ab => {
+    const vmd = loader.parser.parseVmd(ab, false);
     const isCam = vmd.cameras && vmd.cameras.length > 0 && (!vmd.motions || vmd.motions.length === 0);
-    const clip = isCam
-      ? loader.animationBuilder.buildCameraAnimation(vmd)
-      : loader.animationBuilder.build(vmd, mmdMesh);
-    /* 临时动作对象：加入 ACTIONS（仅本次会话，不写 manifest），直接播放 */
-    const id = 'import' + (++importSeq);
-    ACTIONS.push({ id: id, name: file.name.replace(/\.vmd$/i, ''), file: null, camera: isCam, imported: true });
-    const a = ACTIONS[ACTIONS.length - 1];
-    initActions();            /* 重渲染动作列表（含新导入项） */
-    appendLine({ t: '动作：' + a.name + ' 导入成功（临时，刷新后消失）' + (isCam ? ' · 相机动作' : ''), c: 'ok' });
-    playAction(a, clip);      /* 直接播放（clip 已生成，跳过网络加载） */
-  }).catch(e => {
-    console.error(e);
-    appendLine({ t: '动作：' + file.name + ' 读取失败: ' + e.message, c: 'err' });
+    const clip = isCam ? loader.animationBuilder.buildCameraAnimation(vmd) : loader.animationBuilder.build(vmd, mesh);
+    return { clip: clip, isCam: isCam };
   });
 }
 
-document.getElementById('action-import').addEventListener('click', e => {
-  e.stopPropagation();
-  document.getElementById('action-file').click();
-});
-document.getElementById('action-file').addEventListener('change', e => {
-  const f = e.target.files && e.target.files[0];
-  if (f) importActionFile(f);
-  e.target.value = '';   /* 允许重复选择同一文件 */
-});
+function doImport() {
+  const p = importPicked;
+  if (!mmdMesh) { appendLine({ t: '动作：请先加载模型再导入', c: 'warn' }); return; }
+  if (!p.motion && !p.cam) { appendLine({ t: '导入：请至少选择一个动作或镜头文件', c: 'warn' }); return; }
+  appendLine({ t: '动作：解析导入文件 …', c: 'dim' });
+  const tasks = [];
+  if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionClip = r.clip; p.motionCam = r.isCam; }));
+  if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { p.camClip = r.clip; p.camIsCam = r.isCam; }));
+  Promise.all(tasks).then(() => {
+    /* 临时动作对象：会话级，刷新后消失 */
+    const base = p.motion ? (p.motion.name || 'motion').replace(/\.vmd$/i, '') : '镜头';
+    const id = 'import' + (++importSeq);
+    const a = {
+      id: id, name: base, file: null, imported: true,
+      motionClip: p.motionClip || null,
+      camClip: p.camClip || null,
+      bgm: p.music ? URL.createObjectURL(p.music) : null
+    };
+    ACTIONS.push(a);
+    initActions();
+    closeImportModal();
+    appendLine({ t: '动作：' + a.name + ' 导入成功（临时，刷新后消失）', c: 'ok' });
+    playAction(a);
+  }).catch(e => {
+    console.error(e);
+    appendLine({ t: '导入：解析失败（文件损坏或非 VMD?）: ' + e.message, c: 'err' });
+  });
+}
+
+/* 弹窗交互 */
+document.getElementById('action-import').addEventListener('click', e => { e.stopPropagation(); openImportModal(); });
+document.getElementById('import-close').addEventListener('click', closeImportModal);
+document.getElementById('import-modal').addEventListener('click', e => { if (e.target === document.getElementById('import-modal')) closeImportModal(); });
+const importKinds = [
+  ['motion', 'import-motion-btn', 'import-motion-file', 'import-motion-name'],
+  ['cam', 'import-cam-btn', 'import-cam-file', 'import-cam-name'],
+  ['music', 'import-music-btn', 'import-music-file', 'import-music-name']
+];
+for (const [kind, btnId, inputId, nameId] of importKinds) {
+  document.getElementById(btnId).addEventListener('click', () => document.getElementById(inputId).click());
+  document.getElementById(inputId).addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    importPicked[kind] = f;
+    const el = document.getElementById(nameId);
+    el.textContent = f.name;
+    el.classList.add('chosen');
+    e.target.value = '';
+  });
+}
+document.getElementById('import-ok').addEventListener('click', doImport);
 
 /* 加载清单模型：直接走 MMDLoader.load（与白模同一验证路径，纹理目录由 extractUrlBase 自动解析） */
 let loadSeq = 0;   /* 模型加载序号：防"慢模型后完成覆盖新模型"竞态（历史遗留，已修复） */
