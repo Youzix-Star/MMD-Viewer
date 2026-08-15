@@ -1129,7 +1129,11 @@ function onModelLoaded(mesh) {
   const viewDist = size.y * 1.5 + 4;
   camera.position.set(0, size.y * 0.6, viewDist);   /* x=0：正对模型正面 */
   camera.far = Math.max(50, viewDist * 3);
+  /* 修复(2026-08-16)：切模型时恢复 fov 默认并清 camAnimated——
+   * 旧镜头 VMD 改过的变焦会在新模型上残留（播放含镜头动作时切换模型会倾斜） */
+  camera.fov = 45;
   camera.updateProjectionMatrix();
+  camAnimated = false;
   controls.target.set(0, size.y * 0.5, 0);
   /* P3-4：新 min/max 边界确保包含当前相机距离，避免 update() 瞬间 clamp 造成变焦突变 */
   const curDist = camera.position.distanceTo(controls.target);
