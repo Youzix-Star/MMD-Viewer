@@ -404,4 +404,21 @@
 
 ---
 
+## 🎛 2026-08-16 · 功能：播放控制条（进度/倍速/快进）＋ 2 连修
+
+### 功能（882298a）
+- 动作播放时底部浮层控制条：进度条（可拖动 seek）+ 时间显示 + 倍速（0.5/1/1.5/2×）+ 快进 +10s
+- 倍速实现：`mixer.update(dt × 倍速)`（只快进动画，物理保持真实 dt）
+
+### 两连修（均用户实测确认）
+1. **音乐未联动**（b746e87）：进度/倍速/快进只操作动画——补 `bgmAudio.currentTime` seek、
+   `Audio.playbackRate` 变速（playBGM 新建/复用分支同步）
+2. **动画 seek 无效**（0ac375c）：`mixer.time = v` 不影响播放——r160 `AnimationAction._updateTime`
+   用自身 `this.time` 累加 delta，mixer.time 仅多 action 同步基准。修复：`getPlayAction()` 取
+   helper 的 action（`mixer.clipAction(clip)` 复用同一实例），seek/快进/进度显示全用 `action.time`
+
+---
+
+---
+
 *记录由启明维护。改动请及时归档，保持"每一步都有据可查"。*
