@@ -405,15 +405,14 @@
   #btn-reset:active { background: var(--surface2); }
   #btn-reset .material-icons { font-size: 20px; }
 
-  /* ===== 播放控制条（动作播放时底部浮层：进度/倍速/快进/复位） ===== */
+  /* ===== 播放控制条（2026-08-16：占用左下日志卡位置，复位按钮保持右下不动） ===== */
   #play-ctl {
-    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
-    width: min(420px, calc(100vw - 32px));
-    background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: var(--r-lg);
-    box-shadow: var(--elev-2); padding: 10px 14px 12px; z-index: 22;
-    display: flex; flex-direction: column; gap: 8px;
+    position: absolute; left: 16px; bottom: 16px;   /* 与日志卡同位：播放时日志让位 */
+    width: min(300px, calc(100vw - 32px));
+    background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: var(--r-md);
+    box-shadow: var(--elev-1); padding: 8px 12px 10px; z-index: 15;
+    display: flex; flex-direction: column; gap: 6px;
     font-size: 11px; color: var(--dim);
-    backdrop-filter: blur(8px);
   }
   #play-ctl.hidden { display: none; }
   .pc-main { display: flex; align-items: center; gap: 10px; }
@@ -629,7 +628,6 @@
         <span id="pc-time">0:00 / 0:00</span>
       </div>
       <div class="pc-btns">
-        <button class="pc-btn pc-icon" id="pc-reset" title="停止并复位"><i class="material-icons">restart_alt</i></button>
         <button class="pc-btn" id="pc-fwd" title="快进 10 秒">+10s</button>
         <button class="pc-speed pc-btn" data-s="0.5">0.5×</button>
         <button class="pc-speed pc-btn active" data-s="1">1×</button>
@@ -1377,18 +1375,16 @@ function updatePlayCtl() {
   document.getElementById('pc-time').textContent = fmtTime(t) + ' / ' + fmtTime(dur);
 }
 function showPlayCtl() {
-  /* 播放时控制条独占底部：隐藏日志卡/复位按钮，避免重叠（2026-08-16 用户反馈） */
-  const log = document.getElementById('log'), rst = document.getElementById('btn-reset');
+  /* 播放时日志卡让位给控制条（同位置）；右下复位按钮保持不动（2026-08-16 用户方案） */
+  const log = document.getElementById('log');
   if (log) log.style.display = 'none';
-  if (rst) rst.style.display = 'none';
   document.getElementById('play-ctl').classList.remove('hidden');
 }
 function hidePlayCtl() {
   const ctl = document.getElementById('play-ctl');
   if (ctl) ctl.classList.add('hidden');
-  const log = document.getElementById('log'), rst = document.getElementById('btn-reset');
+  const log = document.getElementById('log');
   if (log) log.style.display = '';
-  if (rst) rst.style.display = '';
   pcSeeking = false;
 }
 
@@ -1419,16 +1415,6 @@ document.getElementById('pc-fwd').addEventListener('click', () => {
   if (action && dur > 0) action.time = Math.min(action.time + 10, dur);   /* 修复：操作 action.time */
   if (bgmAudio && !bgmAudio.paused) bgmAudio.currentTime = Math.min((bgmAudio.currentTime || 0) + 10, dur || 1e9);
 });
-
-/* 控制条复位按钮（播放中也可停止并复位——替代被隐藏的右下角复位按钮） */
-document.getElementById('pc-reset').addEventListener('click', () => {
-  if (currentAction) stopAction();
-  resetPose();
-  camAnimated = false;
-  restoreHomeCam();
-  appendLine({ t: '已复位：视角 + 人物姿态 + 物理', c: 'ok' });
-});
-
 function playAction(a, preClip) {
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
   if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
