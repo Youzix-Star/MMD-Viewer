@@ -1054,6 +1054,7 @@ setWindArrowAlpha(physCfg.windOn ? 0.85 : 0.25);   /* 风开实色 / 风关半�
 windArrow.visible = physCfg.arrow;                  /* 风向标显示开关（PHYS 面板可调） */
 scene.add(windArrow);   /* 挂入场景（曾因重构遗漏导致箭头不可见） */
 const _windDir = new THREE.Vector3();   /* 每帧箭头方向复用（历史遗留：每帧 new Vector3 造成 GC 抖动） */
+const _camDir = new THREE.Vector3();    /* 镜头停止后 controls.target 重算用（2026-08-16） */
 let windArrowAnchor = new THREE.Vector3(0, 1.5, 0);   /* 箭头中心锚点（模型正上方），position 每帧按风向偏移半长 */
 
 
@@ -1252,6 +1253,13 @@ function stopAction() {
       camera.fov = homeCam.fov;
       camera.updateProjectionMatrix();
     }
+    /* 修复(2026-08-16)：镜头动画停止后 controls.target 仍是旧值（播放期间 controls 禁用未更新），
+     * 恢复后 controls 强制相机看向旧 target → 视角错位（"模型错位"实为视角被拉歪）。
+     * 重算 target = 相机当前朝向的前方点，保持动画末帧视角，用户可从此继续拖拽 */
+    _camDir.getWorldDirection(camera);
+    const camDist = homeCam ? camera.position.distanceTo(homeCam.target) : 8;
+    controls.target.copy(camera.position).addScaledVector(_camDir, camDist || 8);
+    controls.update();
   }
   stopBGM();
   currentAction = null;
