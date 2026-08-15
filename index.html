@@ -1154,16 +1154,29 @@ function playAction(a) {
   stopAction();
   const h = ensureActionHelper();
   const doPlay = clip => {
+    /* 播放一次、不循环（用户要求 2026-08-15）：停在最后一帧；播完自动停止（含 BGM） */
+    clip.loop = THREE.LoopOnce;
+    clip.clampWhenFinished = true;
     if (a.camera) {
       h.add(camera, { animation: clip });
       controls.enabled = false;                 /* 镜头动画接管相机 */
       controls.autoRotate = false;
     } else {
       h.add(mmdMesh, { animation: clip, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
+      /* 播放结束（LoopOnce 播完）→ 自动停止动作 */
+      const objs = h.objects.get(mmdMesh);
+      if (objs && objs.mixer) {
+        objs.mixer.addEventListener('finished', () => {
+          if (currentAction === a.id) {
+            stopAction();
+            appendLine({ t: '动作：' + a.name + ' 播放完毕', c: 'dim' });
+          }
+        });
+      }
     }
     currentAction = a.id;
     if (a.bgm) playBGM(a.bgm);
-    appendLine({ t: '动作：' + a.name + ' 播放中（再点停止；播放期间待机摇摆暂停）', c: 'ok' });
+    appendLine({ t: '动作：' + a.name + ' 播放中（一次；再点停止；播放期间待机摇摆暂停）', c: 'ok' });
     updateActionUI();
   };
   if (actionClips[a.id]) { doPlay(actionClips[a.id]); return; }
