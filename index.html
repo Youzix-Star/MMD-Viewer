@@ -1200,20 +1200,6 @@ let currentAction = null;       /* 当前动作 id（null=无） */
 let camAnimated = false;        /* 相机曾被镜头动作驱动（2026-08-16：切无镜头动作时需先恢复初始视角） */
 let bgmAudio = null;            /* BGM（懒加载；WAV 不入库，缺失时降级） */
 let bgmWarned = false;
-/* ===== 临时调试（排查"末帧蹲姿残留"，定位后删除） ===== */
-const DEBUG_BONES = true;
-let debugBoneTick = 0;
-function boneDebug(label) {
-  if (!DEBUG_BONES || !mmdMesh) return;
-  const bones = mmdMesh.skeleton.bones;
-  const pick = ['センター', '腰', '上半身', '左足ＩＫ', '右足ＩＫ', '左ひざ'];
-  const parts = [label + ':'];
-  for (const n of pick) {
-    const b = bones.find(x => x.name === n);
-    if (b) parts.push(n + ' p(' + b.position.x.toFixed(2) + ',' + b.position.y.toFixed(2) + ',' + b.position.z.toFixed(2) + ') q(' + b.quaternion.x.toFixed(2) + ',' + b.quaternion.y.toFixed(2) + ',' + b.quaternion.z.toFixed(2) + ',' + b.quaternion.w.toFixed(2) + ')');
-  }
-  appendLine({ t: '[调试] ' + parts.join(' '), c: 'dim' });
-}
 
 /* BGM 联动：动作带 bgm 字段时播放（loop），停止动作时暂停 */
 function playBGM(src) {
@@ -1277,7 +1263,6 @@ function stopAction() {
  * "末帧姿态"跳变到第 0 帧（骨骼/morph/刚体状态不一致）导致诡异（2026-08-15 用户反馈） */
 function resetPose() {
   if (!mmdMesh) return;
-  boneDebug('resetPose前');   /* 临时调试 */
   if (mmdMesh.pose) {
     mmdMesh.pose();
     mmdMesh.updateMatrixWorld(true);
@@ -1286,7 +1271,6 @@ function resetPose() {
     for (let i = 0; i < mmdMesh.morphTargetInfluences.length; i++) mmdMesh.morphTargetInfluences[i] = 0;
   }
   if (physics) { physics.reset(); physics.warmup(30); }
-  boneDebug('resetPose后');   /* 临时调试 */
 }
 
 /* 相机恢复到初始视角（全量：位置/朝向/up/fov/目标，2026-08-16） */
@@ -1302,13 +1286,9 @@ function restoreHomeCam() {
 }
 
 function playAction(a, preClip) {
-  /* ===== 临时调试日志（排查"末帧蹲姿残留"，定位后删除） ===== */
-  appendLine({ t: '[调试] playAction: ' + a.name + ' | 上一动作=' + (currentAction || '无') + ' | 镜头=' + !!(a.camera || a.camClip) + ' | preClip=' + !!preClip + ' | 缓存clip=' + !!actionClips[a.id] + ' | imported=' + !!a.imported, c: 'dim' });
-  boneDebug('playAction进入');
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
   if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
   stopAction();
-  boneDebug('stopAction后');
   /* 修复(2026-08-16)：从"含镜头动作"切换过来时相机停在旧镜头末帧——
    * 播放无镜头动作前恢复初始视角，否则新舞蹈画面仍倾斜 */
   if (!a.camera && !a.camClip && camAnimated) {
@@ -1359,7 +1339,6 @@ function playAction(a, preClip) {
           if (currentAction === a.id) {
             requestAnimationFrame(() => {
               if (currentAction === a.id) {
-                boneDebug('finished停住');   /* 临时调试：动作末帧姿态采样 */
                 stopAction();
                 appendLine({ t: '动作：' + a.name + ' 播放完毕', c: 'dim' });
               }
@@ -1371,7 +1350,6 @@ function playAction(a, preClip) {
     currentAction = a.id;
     if (a.bgm) playBGM(a.bgm);
     appendLine({ t: '动作：' + a.name + ' 播放中（一次；再点停止；播放期间待机摇摆暂停）', c: 'ok' });
-    boneDebug('doPlay完成');   /* 临时调试 */
     updateActionUI();
   };
   if (a.imported && (a.motionClip || a.camClip)) { doPlay(); return; }   /* 导入组合（clip 已在弹窗生成） */
@@ -1870,8 +1848,6 @@ function animate() {
    * 动作播放时替代待机摇摆（动作自带姿态；helper 内部做 动画→ik，物理在下方手动接管）；
    * 关闭摇摆时写回基准姿态（历史遗留：关闭后残留最后一帧倾斜）。 */
   if (currentAction && actionHelper) {
-    /* 临时调试：播放中每 60 帧采样一次骨骼（观察"蹲着跳"是否播放期残留） */
-    if (++debugBoneTick % 60 === 0) boneDebug('播放中t=' + clock.elapsedTime.toFixed(1));
     actionHelper.update(dt);
   } else if (physCfg.sway && sway) {
     applySway(t);
