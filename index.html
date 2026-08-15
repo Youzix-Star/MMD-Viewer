@@ -1106,11 +1106,31 @@ const ACTIONS = [
   { id: 'wink',  name: '眨眼', file: 'models/actions/眨眼.vmd' },
   { id: 'pupil', name: '瞳孔', file: 'models/actions/瞳孔.vmd' },
   { id: 'morph', name: '表情', file: 'models/actions/表情.vmd' },
-  { id: 'cam',   name: '镜头', file: 'models/actions/镜头.vmd', camera: true }
+  { id: 'cam',   name: '镜头', file: 'models/actions/镜头.vmd', camera: true },
+  { id: 'dance', name: 'numb numb', file: 'models/numb_numb/numb_numb_motion.vmd', bgm: 'models/numb_numb/NumbNumb.wav' }
 ];
 let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
 const actionClips = {};         /* 已转换的 AnimationClip 缓存 { id: clip } */
 let currentAction = null;       /* 当前动作 id（null=无） */
+let bgmAudio = null;            /* BGM（懒加载；WAV 不入库，缺失时降级） */
+let bgmWarned = false;
+
+/* BGM 联动：动作带 bgm 字段时播放（loop），停止动作时暂停 */
+function playBGM(src) {
+  if (!src) return;
+  if (bgmAudio) { bgmAudio.currentTime = 0; bgmAudio.play().catch(() => {}); return; }
+  bgmAudio = new Audio(src);
+  bgmAudio.loop = true;
+  bgmAudio.play().catch(() => {
+    if (!bgmWarned) {
+      bgmWarned = true;
+      appendLine({ t: 'BGM：音频缺失或无法播放（NumbNumb.wav 不入库需本地自备；音乐版权归原唱片公司，请勿公开分发）', c: 'warn' });
+    }
+  });
+}
+function stopBGM() {
+  if (bgmAudio) bgmAudio.pause();
+}
 
 function ensureActionHelper() {
   if (!actionHelper) actionHelper = new MMDAnimationHelper({ sync: false });
@@ -1126,6 +1146,7 @@ function stopAction() {
     controls.enabled = true;
     controls.autoRotate = physCfg.autoRotate;   /* 恢复用户设置（镜头动作期间临时关闭） */
   }
+  stopBGM();
   currentAction = null;
   updateActionUI();
 }
@@ -1144,6 +1165,7 @@ function playAction(a) {
       h.add(mmdMesh, { animation: clip, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
     }
     currentAction = a.id;
+    if (a.bgm) playBGM(a.bgm);
     appendLine({ t: '动作：' + a.name + ' 播放中（再点停止；播放期间待机摇摆暂停）', c: 'ok' });
     updateActionUI();
   };

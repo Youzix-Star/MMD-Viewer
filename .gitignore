@@ -6,6 +6,8 @@
 # 第三方素材（2026-08-15 用户指令：素材不入库、不推送到 GitHub）
 # models/actions/ 为美丽Liya 动作包（VMD），条款见其 rm.txt（禁手机mmd/禁二传）
 models/actions/
+# 音频素材（音乐版权归原唱片公司，不入库；本地自用）
+*.wav
 
 # 系统文件
 .DS_Store

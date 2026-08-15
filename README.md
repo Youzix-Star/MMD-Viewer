@@ -43,7 +43,21 @@ MMD-Viewer/
 └── models/           # 模型包（.pmx + 贴图）
     ├── Kasane Teto SynthV/
     ├── Sour式初音ミク/
-    └── actions/       # 动作包 VMD（美丽Liya，不入库：.gitignore 排除，本地自备）
+    ├── actions/       # 动作包 VMD（美丽Liya，不入库：.gitignore 排除，本地自备）
+    └── numb_numb/     # numb numb 舞蹈动作（入库）+ BGM（不入库，本地自备）
+```
+
+## 动作资源与借物表
+
+MODELS 面板「动作」区可播放 VMD 动作（模型加载后）：
+
+| 动作 | 来源 | 借物表标注（条款要求） |
+|------|------|------------------------|
+| 眨眼 / 瞳孔 / 表情 / 镜头 | 美丽Liya 动作包 | 动作：美丽Liya/Aileen_71 · 镜头：美丽Liya（⚠ 该包条款含"禁手机mmd/禁二传"，本地自用，不入库） |
+| **numb numb**（舞蹈，含 BGM 联动） | Aileen_71 配布版 | **振付：まりやん · 动作：Aileen_71**（硬性要求，发布须标注） |
+
+- **BGM**（NumbNumb.wav）：音乐版权归原唱片公司，**不入库、勿公开分发**，本地放置于 `models/numb_numb/` 后自动播放
+- 动作条款：Aileen_71 动作禁 18+、禁收费转售、禁有偿委托；美丽Liya 包禁手机mmd/禁二传——使用前请各自遵守
 ```
 
 ## 模型版权

@@ -288,4 +288,16 @@
 
 ---
 
+## 💃 2026-08-15 · 接入 numb numb 舞蹈动作（Aileen_71 配布版）
+
+- **动作入库**：`models/numb_numb/numb_numb_motion.vmd`（4.3MB 完整舞蹈）随仓库公布
+  ——Aileen_71 条款明确"动作永远免费配布"、无"禁手机mmd/禁二传"，随公开仓库分发合规；
+  **借物表硬性要求：振付：まりやん · 动作：Aileen_71**（已写入 README）
+- **BGM 不入库**：`NumbNumb.wav`（Linkin Park Numb 音频，版权归原唱片公司）由 `*.wav` gitignore 排除，
+  本地放置自动播放；代码降级：缺失时提示一次、不阻塞动作
+- **实现**：动作列表新增「numb numb」；`ACTIONS` 支持 `bgm` 字段，播放动作自动 loop BGM、停止动作暂停
+- 条款提醒（README 已写）：Aileen_71 动作禁 18+、禁收费转售、禁有偿委托
+
+---
+
 *记录由启明维护。改动请及时归档，保持"每一步都有据可查"。*
