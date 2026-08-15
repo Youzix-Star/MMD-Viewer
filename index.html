@@ -255,6 +255,15 @@
   #model-panel .mp-actions { border-top: 1px solid var(--line); padding: 8px 14px 10px; }
   #model-panel .mp-actions-title { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 500; color: var(--dim); margin-bottom: 6px; }
   #model-panel .mp-actions-title #action-note { font-size: 10px; color: var(--amber); font-weight: 400; }
+  /* 导入动作按钮（2026-08-16：浏览器选 VMD 临时加载，不写 manifest） */
+  #model-panel .mp-import {
+    display: inline-flex; align-items: center; gap: 3px;
+    height: 22px; padding: 0 8px; margin-left: auto; margin-right: 8px;
+    border: 1px solid var(--line); border-radius: 999px;
+    color: var(--primary); font-size: 10px; cursor: pointer;
+  }
+  #model-panel .mp-import:active { background: var(--surface2); }
+  #model-panel .mp-import .material-icons { font-size: 13px; }
   #model-panel .mp-actions .mp-list { padding: 0; max-height: none; }
   #model-panel .mp-actions .mp-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; }
   #model-panel .mp-actions .mp-item.playing { border-color: var(--amber); background: #fff8ef; }
@@ -489,7 +498,13 @@
       <div class="mp-head"><span>选择模型</span><span class="mp-close">✕</span></div>
       <div class="mp-list" id="model-list"></div>
       <div class="mp-actions">
-        <div class="mp-actions-title">动作<span id="action-note"></span></div>
+        <div class="mp-actions-title">动作
+          <span class="mp-import" id="action-import" title="浏览器导入 VMD 临时加载动作（不写入 manifest）">
+            <i class="material-icons">file_open</i>导入
+            <input type="file" id="action-file" accept=".vmd" style="display:none">
+          </span>
+          <span id="action-note"></span>
+        </div>
         <div class="mp-list" id="action-list"></div>
       </div>
     </div>
@@ -1101,9 +1116,12 @@ function showModelPanel() {
  * 动作播放（numb numb 舞蹈，Aileen_71 配布版，2026-08-15 接入）
  * 实现：MMDAnimationHelper({sync:false, physics 由项目手动物理接管})
  * ============================================================ */
-/* 动作清单：运行时从 manifest.json 的 actions 数组加载（2026-08-16 起用户可自行添加动作，
- * 与模型机制对称——在 manifest.json 加条目 + 放置 VMD 即可，见 README） */
-const ACTIONS = [];
+const ACTIONS = [
+  { id: 'dance', name: 'numb numb', file: 'models/numb_numb/numb_numb_motion.vmd', bgm: 'models/numb_numb/NumbNumb.wav' },
+  { id: 'iris',  name: 'IRIS OUT',  file: 'models/IRIS_OUT/IRIS OUT.vmd',           bgm: 'models/IRIS_OUT/IRIS OUT.wav' },
+  { id: 'idol',  name: 'アイドル',  file: 'models/idol/Sour式/动作 Sour.vmd',        bgm: 'models/idol/アイドル-YOASOBI.wav' },
+  { id: 'idolcam', name: 'アイドル镜头', file: 'models/idol/Sour式/相机 Sour.vmd',   camera: true }
+];
 let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
 const actionClips = {};         /* 已转换的 AnimationClip 缓存 { id: clip } */
 let currentAction = null;       /* 当前动作 id（null=无） */
@@ -1174,7 +1192,7 @@ function resetPose() {
   if (physics) { physics.reset(); physics.warmup(30); }
 }
 
-function playAction(a) {
+function playAction(a, preClip) {
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
   if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
   stopAction();
@@ -1219,6 +1237,7 @@ function playAction(a) {
     appendLine({ t: '动作：' + a.name + ' 播放中（一次；再点停止；播放期间待机摇摆暂停）', c: 'ok' });
     updateActionUI();
   };
+  if (preClip) { actionClips[a.id] = preClip; doPlay(preClip); return; }   /* 导入路径：clip 已生成，直接播放 */
   if (actionClips[a.id]) { doPlay(actionClips[a.id]); return; }
   appendLine({ t: '动作：加载 ' + a.name + ' …', c: 'dim' });
   /* 修复(2026-08-15)：r160 MMDAnimationHelper 直接吃 AnimationClip，不吃 VMD 原始数据——
@@ -1263,6 +1282,51 @@ function updateActionUI() {
   if (note) note.textContent = currentAction ? '播放中' : '';
 }
 
+/* ============================================================
+ * 浏览器导入 VMD 临时加载动作（2026-08-16 用户需求）：
+ * 不写 manifest、不重启——选文件即解析并播放
+ * ============================================================ */
+let importSeq = 0;   /* 导入动作的临时 id 序号 */
+
+function importActionFile(file) {
+  if (!mmdMesh) { appendLine({ t: '动作：请先加载模型再导入', c: 'warn' }); return; }
+  appendLine({ t: '动作：读取 ' + file.name + ' …', c: 'dim' });
+  file.arrayBuffer().then(ab => {
+    let vmd;
+    try {
+      vmd = loader.parser.parseVmd(ab, false);
+    } catch (e) {
+      console.error(e);
+      appendLine({ t: '动作：' + file.name + ' 解析失败（非 VMD 文件?）: ' + e.message, c: 'err' });
+      return;
+    }
+    const isCam = vmd.cameras && vmd.cameras.length > 0 && (!vmd.motions || vmd.motions.length === 0);
+    const clip = isCam
+      ? loader.animationBuilder.buildCameraAnimation(vmd)
+      : loader.animationBuilder.build(vmd, mmdMesh);
+    /* 临时动作对象：加入 ACTIONS（仅本次会话，不写 manifest），直接播放 */
+    const id = 'import' + (++importSeq);
+    ACTIONS.push({ id: id, name: file.name.replace(/\.vmd$/i, ''), file: null, camera: isCam, imported: true });
+    const a = ACTIONS[ACTIONS.length - 1];
+    initActions();            /* 重渲染动作列表（含新导入项） */
+    appendLine({ t: '动作：' + a.name + ' 导入成功（临时，刷新后消失）' + (isCam ? ' · 相机动作' : ''), c: 'ok' });
+    playAction(a, clip);      /* 直接播放（clip 已生成，跳过网络加载） */
+  }).catch(e => {
+    console.error(e);
+    appendLine({ t: '动作：' + file.name + ' 读取失败: ' + e.message, c: 'err' });
+  });
+}
+
+document.getElementById('action-import').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('action-file').click();
+});
+document.getElementById('action-file').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if (f) importActionFile(f);
+  e.target.value = '';   /* 允许重复选择同一文件 */
+});
+
 /* 加载清单模型：直接走 MMDLoader.load（与白模同一验证路径，纹理目录由 extractUrlBase 自动解析） */
 let loadSeq = 0;   /* 模型加载序号：防"慢模型后完成覆盖新模型"竞态（历史遗留，已修复） */
 function loadServerModel(m) {
@@ -1304,10 +1368,6 @@ async function initModels() {
     }
     const def = (data.models || []).find(m => m.id === 'white') || (data.models || [])[0];
     if (def) loadServerModel(def);
-    /* 动作清单：从 manifest 加载（用户可自行添加动作条目） */
-    ACTIONS.length = 0;
-    for (const a of data.actions || []) ACTIONS.push(a);
-    initActions();
   } catch (e) {
     console.error(e);
     appendLine({ t: '模型清单加载失败: ' + e.message, c: 'err' });
@@ -1532,7 +1592,8 @@ controls.update();
 /* 启动：读取清单并加载默认模型。
  * 历史遗留：原在 controls 声明前调用，正确性依赖"加载必然异步"的隐含契约，
  * onModelLoaded 引用 controls；移到 controls 之后消除顺序隐患。 */
-initModels();   /* initActions 由 initModels 在 manifest 加载后调用（动作清单来自 manifest.json） */
+initModels();
+initActions();
 
 /* PHYS-5b：启动时恢复上次保存的参数（localStorage） */
 try {
