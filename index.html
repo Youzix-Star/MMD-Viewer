@@ -1342,6 +1342,15 @@ function getPlayMixer() {
   const objs = actionHelper.objects.get(mmdMesh);
   return (objs && objs.mixer) ? objs.mixer : null;
 }
+/* 修复(2026-08-16)：seek 必须操作 action.time 而非 mixer.time——
+ * r160 AnimationAction._updateTime 用自身 this.time 累加 delta，mixer.time 赋值不影响播放 */
+function getPlayAction() {
+  const mixer = getPlayMixer();
+  const a = ACTIONS.find(x => x.id === currentAction);
+  if (!mixer || !a) return null;
+  const clip = a.motionClip || actionClips[a.id];
+  return clip ? mixer.clipAction(clip) : null;
+}
 function getPlayDur() {
   const a = ACTIONS.find(x => x.id === currentAction);
   if (!a) return 0;
@@ -1350,9 +1359,9 @@ function getPlayDur() {
 function updatePlayCtl() {
   const ctl = document.getElementById('play-ctl');
   if (!ctl || ctl.classList.contains('hidden')) return;
-  const mixer = getPlayMixer();
+  const action = getPlayAction();
   const dur = getPlayDur();
-  const t = mixer ? mixer.time : 0;
+  const t = action ? action.time : 0;   /* 修复：用 action.time（mixer.time 不代表播放进度） */
   const prog = document.getElementById('pc-progress');
   if (!pcSeeking) prog.value = dur > 0 ? Math.round(t / dur * 1000) : 0;
   prog.style.setProperty('--fill', (dur > 0 ? Math.min(t / dur, 1) * 100 : 0) + '%');
@@ -1368,9 +1377,9 @@ function hidePlayCtl() {
 /* 进度条拖动 seek（input 实时跳转，change 结束拖动） */
 document.getElementById('pc-progress').addEventListener('input', () => {
   pcSeeking = true;
-  const mixer = getPlayMixer(), dur = getPlayDur();
+  const action = getPlayAction(), dur = getPlayDur();
   const v = document.getElementById('pc-progress').value / 1000 * dur;
-  if (mixer && dur > 0) mixer.time = v;
+  if (action && dur > 0) { action.time = v; action.play(); }   /* 修复：seek 设 action.time */
   /* 修复(2026-08-16)：进度条同步 BGM——动画与音乐一起 seek（音乐短于动画时 clamp） */
   if (bgmAudio && !bgmAudio.paused && dur > 0) {
     bgmAudio.currentTime = Math.min(v, bgmAudio.duration || v);
@@ -1388,8 +1397,8 @@ document.querySelectorAll('.pc-speed').forEach(b => b.addEventListener('click', 
 
 /* 快进 10 秒（同步 BGM） */
 document.getElementById('pc-fwd').addEventListener('click', () => {
-  const mixer = getPlayMixer(), dur = getPlayDur();
-  if (mixer && dur > 0) mixer.time = Math.min(mixer.time + 10, dur);
+  const action = getPlayAction(), dur = getPlayDur();
+  if (action && dur > 0) action.time = Math.min(action.time + 10, dur);   /* 修复：操作 action.time */
   if (bgmAudio && !bgmAudio.paused) bgmAudio.currentTime = Math.min((bgmAudio.currentTime || 0) + 10, dur || 1e9);
 });
 
