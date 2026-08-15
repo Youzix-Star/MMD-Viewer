@@ -386,7 +386,15 @@
     font-size: 11px; color: var(--dim); background: var(--surface2); border-radius: 6px; padding: 5px 8px;
   }
   .import-file.chosen { color: var(--text); }
+  .import-file.disabled { color: var(--dim); text-decoration: line-through; }
   .import-btn { width: auto; flex: 0 0 auto; padding: 0 12px; }
+  /* 编辑模式槽位禁用按钮（2026-08-16：禁用动画/镜头/音乐） */
+  .import-disable {
+    flex: 0 0 auto; height: 26px; padding: 0 10px;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: #fff; color: var(--dim); font-size: 11px; font-family: inherit; cursor: pointer;
+  }
+  .import-disable.on { background: var(--surface3); border-color: var(--primary); color: var(--primary); }
 
   /* ===== 复位视角按钮（右下角，方形卡片同款） ===== */
   #btn-reset {
@@ -601,18 +609,21 @@
             <span class="import-label"><i class="material-icons">directions_run</i>动作</span>
             <span class="import-file" id="import-motion-name">未选择（.vmd 骨骼动作）</span>
             <button class="pp-reset import-btn" id="import-motion-btn">选择文件</button>
+            <button class="import-disable" id="import-motion-disable" title="禁用动作（只保留音乐/镜头）">禁用</button>
             <input type="file" id="import-motion-file" accept=".vmd" style="display:none">
           </div>
           <div class="import-row">
             <span class="import-label"><i class="material-icons">videocam</i>镜头</span>
             <span class="import-file" id="import-cam-name">未选择（.vmd 相机动作，可选）</span>
             <button class="pp-reset import-btn" id="import-cam-btn">选择文件</button>
+            <button class="import-disable" id="import-cam-disable" title="禁用镜头">禁用</button>
             <input type="file" id="import-cam-file" accept=".vmd" style="display:none">
           </div>
           <div class="import-row">
             <span class="import-label"><i class="material-icons">music_note</i>音乐</span>
             <span class="import-file" id="import-music-name">未选择（音频，可选）</span>
             <button class="pp-reset import-btn" id="import-music-btn">选择文件</button>
+            <button class="import-disable" id="import-music-disable" title="禁用音乐（只保留动画）">禁用</button>
             <input type="file" id="import-music-file" accept=".wav,.mp3,.m4a,.ogg,.flac" style="display:none">
           </div>
           <div class="pp-row pp-btns" style="margin-top:14px">
@@ -1559,13 +1570,21 @@ let importPicked = { motion: null, cam: null, music: null, motionClip: null, cam
 
 let importMode = 'import';   /* 'import' 新导入 | 'edit' 编辑已有动作（加音乐/镜头） */
 let editTarget = null;       /* 编辑模式的目标动作对象 */
+let editDisabled = { motion: false, cam: false, music: false };   /* 编辑模式禁用槽位（2026-08-16） */
 
 function openImportModal(target) {
   importMode = target ? 'edit' : 'import';
   editTarget = target || null;
+  editDisabled = { motion: false, cam: false, music: false };   /* 重置禁用状态 */
   /* 修复(P1, 2026-08-16 发布前审查)：整体重建 importPicked——旧 motionClip/camClip 跨次
    * 打开残留会导致"只选动作却继承上次镜头"（相机被接管、controls 锁死） */
   importPicked = { motion: null, cam: null, music: null, motionClip: null, camClip: null };
+  /* 禁用按钮：仅编辑模式显示（导入模式无语义） */
+  const isEdit = importMode === 'edit';
+  for (const k of ['motion', 'cam', 'music']) {
+    const d = document.getElementById('import-' + k + '-disable');
+    if (d) { d.style.display = isEdit ? '' : 'none'; d.classList.remove('on'); }
+  }
   document.getElementById('import-modal-title').textContent = importMode === 'edit'
     ? '编辑动作：' + target.name
     : '导入动作';
@@ -1604,9 +1623,11 @@ function doImport() {
   const p = importPicked;
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型再操作', c: 'warn' }); return; }
   if (importMode === 'edit') {
-    /* 编辑模式：更新已有动作（音乐/镜头/动作均可替换，未选的保持原值） */
+    /* 编辑模式：更新已有动作（音乐/镜头/动作均可替换/禁用，未选的保持原值） */
     const a = editTarget;
-    if (!p.motion && !p.cam && !p.music) { appendLine({ t: '编辑：未选择任何修改项', c: 'warn' }); return; }
+    if (!p.motion && !p.cam && !p.music && !editDisabled.motion && !editDisabled.cam && !editDisabled.music) {
+      appendLine({ t: '编辑：未选择任何修改项', c: 'warn' }); return;
+    }
     appendLine({ t: '动作：更新 ' + a.name + ' …', c: 'dim' });
     const tasks = [];
     if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionIsCam = r.isCam; p.motionClip = r.clip; }));
@@ -1618,8 +1639,13 @@ function doImport() {
       if (p.cam && !p.camIsCam) { appendLine({ t: '编辑：所选"镜头"文件是骨骼动作，请放入动作槽', c: 'err' }); return; }
       if (p.motion) { a.motionClip = p.motionClip; a.file = null; }
       if (p.cam) a.camClip = p.camClip;
+      /* 禁用处理（2026-08-16）：禁用槽位移除对应部分——禁用动画只留音乐等 */
+      const dis = [];
+      if (editDisabled.motion) { a.motionClip = null; a.file = null; dis.push('动作'); }
+      if (editDisabled.cam) { a.camClip = null; dis.push('镜头'); }
+      if (editDisabled.music) { if (a.bgm && a.bgm.indexOf('blob:') === 0) URL.revokeObjectURL(a.bgm); a.bgm = null; dis.push('音乐'); }
       closeImportModal();
-      const what = [p.motion ? '动作' : '', p.cam ? '镜头' : '', p.music ? '音乐' : ''].filter(Boolean).join('/');
+      const what = [p.motion ? '动作' : '', p.cam ? '镜头' : '', p.music ? '音乐' : '', dis.length ? '禁用' + dis.join('/') : ''].filter(Boolean).join('/');
       appendLine({ t: '动作：' + a.name + ' 已更新（' + what + '）', c: 'ok' });
       playAction(a);   /* 应用并播放看效果 */
     }).catch(e => {
@@ -1675,7 +1701,32 @@ for (const [kind, btnId, inputId, nameId] of importKinds) {
     const el = document.getElementById(nameId);
     el.textContent = f.name;
     el.classList.add('chosen');
+    el.classList.remove('disabled');
+    /* 选了新文件即取消该槽位禁用（2026-08-16） */
+    if (editDisabled[kind]) {
+      editDisabled[kind] = false;
+      const d = document.getElementById('import-' + kind + '-disable');
+      if (d) d.classList.remove('on');
+    }
     e.target.value = '';
+  });
+  /* 禁用按钮：编辑模式 toggle（2026-08-16——禁用动画只留音乐 / 禁用音乐只留动画等） */
+  const dbtn = document.getElementById('import-' + kind + '-disable');
+  if (dbtn) dbtn.addEventListener('click', () => {
+    editDisabled[kind] = !editDisabled[kind];
+    dbtn.classList.toggle('on', editDisabled[kind]);
+    const el = document.getElementById(nameId);
+    if (editDisabled[kind]) {
+      el.textContent = '已禁用（应用后移除）';
+      el.classList.add('disabled');
+    } else {
+      el.classList.remove('disabled');
+      /* 恢复显示当前状态 */
+      if (kind === 'motion') el.textContent = editTarget ? editTarget.name + '（当前动作，可替换）' : '未选择（.vmd 骨骼动作）';
+      else if (kind === 'cam') el.textContent = '未选择（.vmd 相机动作，可选）';
+      else el.textContent = (editTarget && editTarget.bgm) ? '当前音乐已配（可更换）' : '未选择（给此动作配音乐，可选）';
+      el.classList.toggle('chosen', kind === 'motion' || (kind === 'music' && !!editTarget.bgm));
+    }
   });
 }
 document.getElementById('import-ok').addEventListener('click', doImport);
