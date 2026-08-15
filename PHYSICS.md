@@ -25,9 +25,15 @@ mesh.geometry.userData.MMD = { bones, iks, grants, rigidBodies, constraints }
 **每帧流程（animate 内，顺序不能乱）**：
 
 ```
-待机摇摆 applySway(t) → 微风施力 applyWind(t) → mesh.updateMatrixWorld(true) → physics.update(dt)
+动作/待机摇摆 → 微风施力 applyWind(t) → mesh.updateMatrixWorld(true) → physics.update(dt)
 ```
 
+- 动作播放（2026-08-15 新增）：`MMDAnimationHelper({sync:false})` + `add(mesh, {animation: clip, physics: false})`
+  ——**双物理隔离**（helper 不创建自己的 MMDPhysics）。每帧 `helper.update(dt)` 替代待机摇摆
+  （内部顺序：camera 动画 → mixer 骨骼/morph → IK），然后 `updateMatrixWorld(true)` → 手动物理 update。
+  顺序与 MMD 官方一致：动画 → IK → 物理。
+- 动作只播一次（`action.setLoop(LoopOnce,1)` + `clampWhenFinished`）；播完延迟一帧自动停止（BGM 同步停）；
+  播放前 `resetPose()`（骨骼 pose + morph 清零 + 物理重贴）避免末帧残留跳变。踩坑详见 ISSUES.md「动作播放踩坑沉淀」
 - `dt` 必须限幅 `Math.min(delta, 1/30)`：后台切回/掉帧时大步长会让 Bullet 爆炸。
 - `updateMatrixWorld(true)` 必须在 `physics.update` 前：MMDPhysics 读 `bone.matrixWorld` 驱动 kinematic 刚体。
 - 单位制：MMD 1 单位 = 10cm，重力 `(0, -98, 0)`（官方默认，勿改）。

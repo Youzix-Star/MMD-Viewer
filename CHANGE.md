@@ -323,4 +323,26 @@
 
 ---
 
+## 🐛 2026-08-15 · 动作播放链路修复（5 连修，启明）
+
+> 动作播放接入后连踩 5 个坑（均有真实报错复现），逐一修复，此处汇总。详细经验见 ISSUES.md「动作播放踩坑沉淀」。
+
+1. **浏览器缓存旧 vendor 导致修复"不生效"**：python http.server 无 Cache-Control，浏览器启发式缓存
+   mmdparser/MMDLoader——代码改了、报错堆栈还是旧行号。修复：index.html→MMDLoader→mmdparser 的
+   import 全链加 `?v=20260815` 版本号，绕缓存（后续 vendor 改动 bump 版本号）
+2. **切模型后首次点动作报 "has not been added yet"**：`stopAction` 无条件 `helper.remove(mmdMesh)`，
+   但新模型从未被 helper 绑定过（`_removeMesh` 对未绑定对象抛错）。修复：remove 前检查
+   `helper.meshes.indexOf(mmdMesh) >= 0`（camera 同理用 `helper.camera === camera`）
+3. **舞蹈仍循环**：`clip.loop = LoopOnce` 无效——r160 `AnimationAction` 构造**硬编码** `loop = LoopRepeat`，
+   不读 clip.loop。修复：`mixer.clipAction(clip)` 取回 helper 已建的 action，显式
+   `action.setLoop(LoopOnce, 1)` + `clampWhenFinished`
+4. **播完自动停止报 backupBones undefined**：`finished` 事件在 `helper._animateMesh` 的 `mixer.update()`
+   **内部同步触发**，回调里直接 `remove(mesh)` 删了 objects 条目，事件返回后 `_saveBones` 读已删条目崩溃。
+   修复：finished 回调延迟到下一帧（`requestAnimationFrame`）再 stopAction
+5. **末帧残留再播诡异**：播完停在末帧（骨骼/morph/刚体均在末帧状态），再播从末帧跳变到第 0 帧。
+   修复：`resetPose()`（骨骼 pose + morph 清零 + 物理重贴 warmup），播放前与复位按钮共用；
+   复位按钮升级为「视角 + 姿态 + 物理」全复位
+
+---
+
 *记录由启明维护。改动请及时归档，保持"每一步都有据可查"。*
