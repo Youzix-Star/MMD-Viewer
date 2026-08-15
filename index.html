@@ -1852,6 +1852,14 @@ function animate() {
    * 动作播放时替代待机摇摆（动作自带姿态；helper 内部做 动画→ik，物理在下方手动接管）；
    * 关闭摇摆时写回基准姿态（历史遗留：关闭后残留最后一帧倾斜）。 */
   if (currentAction && actionHelper) {
+    /* 修复(2026-08-16)：three 镜头动画每帧 camera.lookAt(cameraTarget.position)，
+     * 而 cameraTarget 恒为 (0,0,0)——镜头永远看世界原点。アイドル 等动作的センター
+     * 位移帧让模型整体移出原点 → 镜头与模型错位。改为每帧把 cameraTarget 指向模型
+     * 根骨骼（センター），模型移动镜头跟随（getWorldPosition 用上一帧矩阵，平滑无碍） */
+    if (actionHelper.camera === camera && mmdMesh) {
+      const rootBone = mmdMesh.skeleton.bones.find(b => b.name === 'センター') || mmdMesh.skeleton.bones[0];
+      if (rootBone) rootBone.getWorldPosition(actionHelper.cameraTarget.position);
+    }
     actionHelper.update(dt);
   } else if (physCfg.sway && sway) {
     applySway(t);
