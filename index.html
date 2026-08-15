@@ -405,6 +405,31 @@
   #btn-reset:active { background: var(--surface2); }
   #btn-reset .material-icons { font-size: 20px; }
 
+  /* ===== 播放控制条（动作播放时底部浮层：进度/倍速/快进） ===== */
+  #play-ctl {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    width: min(420px, calc(100vw - 32px));
+    background: rgba(255,255,255,.96); border: 1px solid var(--line); border-radius: var(--r-md);
+    box-shadow: var(--elev-2); padding: 8px 12px 10px; z-index: 22;
+    display: flex; flex-direction: column; gap: 6px;
+    font-size: 11px; color: var(--dim);
+  }
+  #play-ctl.hidden { display: none; }
+  .pc-main { display: flex; align-items: center; gap: 10px; }
+  #pc-progress { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px;
+    background: linear-gradient(to right, var(--primary) var(--fill,0%), #dbe3ec var(--fill,0%)); outline: none; font-size: 16px; }
+  #pc-progress::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--primary); box-shadow: 0 1px 2px rgba(23,40,58,.2); cursor: pointer; }
+  #pc-progress::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid var(--primary); cursor: pointer; }
+  #pc-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .pc-btns { display: flex; gap: 6px; justify-content: flex-end; }
+  .pc-btn {
+    height: 24px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px;
+    background: #fff; color: var(--text); font-size: 11px; font-family: inherit; cursor: pointer;
+  }
+  .pc-btn:active { background: var(--surface2); }
+  .pc-speed.active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+
   /* ===== 窄屏适配：仅 PHYS 卡宽度兜底（防 <284px 视口溢出）。
    * 曾尝试把 HUD 移到左下避让 PHYS 重叠，用户决定恢复左上角原布局（2026-08-15 回滚） ===== */
   @media (max-width: 520px) {
@@ -589,6 +614,20 @@
       </div>
     </div>
     <button id="btn-reset" title="复位视角"><i class="material-icons">restart_alt</i></button>
+    <!-- 播放控制条（动作播放时显示：进度拖动/倍速/快进，2026-08-16） -->
+    <div id="play-ctl" class="hidden">
+      <div class="pc-main">
+        <input type="range" id="pc-progress" min="0" max="1000" step="1" value="0">
+        <span id="pc-time">0:00 / 0:00</span>
+      </div>
+      <div class="pc-btns">
+        <button class="pc-btn" id="pc-fwd" title="快进 10 秒">+10s</button>
+        <button class="pc-speed pc-btn" data-s="0.5">0.5×</button>
+        <button class="pc-speed pc-btn active" data-s="1">1×</button>
+        <button class="pc-speed pc-btn" data-s="1.5">1.5×</button>
+        <button class="pc-speed pc-btn" data-s="2">2×</button>
+      </div>
+    </div>
   </main>
 
 <!-- Ammo.js 物理引擎（three r160 官方 libs/ammo.wasm.js，异步初始化；旧注释"custom wasm 版，含 setParam/CFM 支持"不实——与官方逐字节一致，setParam/CFM 全项目零调用，已修正） -->
@@ -1198,6 +1237,8 @@ let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项�
 const actionClips = {};         /* 已转换的 AnimationClip 缓存 { id: clip } */
 let currentAction = null;       /* 当前动作 id（null=无） */
 let camAnimated = false;        /* 相机曾被镜头动作驱动（2026-08-16：切无镜头动作时需先恢复初始视角） */
+let actionSpeed = 1;            /* 动作播放倍速（0.5/1/1.5/2，进度条控制） */
+let pcSeeking = false;          /* 进度条拖动中（避免被每帧刷新覆盖） */
 let bgmAudio = null;            /* BGM（懒加载；WAV 不入库，缺失时降级） */
 let bgmWarned = false;
 
@@ -1254,6 +1295,7 @@ function stopAction() {
     }
   }
   stopBGM();
+  hidePlayCtl();   /* 隐藏播放控制条 */
   currentAction = null;
   updateActionUI();
 }
@@ -1284,6 +1326,63 @@ function restoreHomeCam() {
   controls.target.copy(homeCam.target);
   controls.update();
 }
+
+/* ============================================================
+ * 播放控制条（2026-08-16：进度拖动 / 倍速 / 快进）
+ * 原理：mixer 用 dt×倍速推进；进度条读写 mixer.time；seek 直接设 mixer.time
+ * ============================================================ */
+function fmtTime(s) {
+  s = Math.max(0, Math.floor(s || 0));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+function getPlayMixer() {
+  if (!actionHelper || !mmdMesh || !currentAction) return null;
+  const objs = actionHelper.objects.get(mmdMesh);
+  return (objs && objs.mixer) ? objs.mixer : null;
+}
+function getPlayDur() {
+  const a = ACTIONS.find(x => x.id === currentAction);
+  if (!a) return 0;
+  return (a.motionClip || actionClips[a.id] || { duration: 0 }).duration || 0;
+}
+function updatePlayCtl() {
+  const ctl = document.getElementById('play-ctl');
+  if (!ctl || ctl.classList.contains('hidden')) return;
+  const mixer = getPlayMixer();
+  const dur = getPlayDur();
+  const t = mixer ? mixer.time : 0;
+  const prog = document.getElementById('pc-progress');
+  if (!pcSeeking) prog.value = dur > 0 ? Math.round(t / dur * 1000) : 0;
+  prog.style.setProperty('--fill', (dur > 0 ? Math.min(t / dur, 1) * 100 : 0) + '%');
+  document.getElementById('pc-time').textContent = fmtTime(t) + ' / ' + fmtTime(dur);
+}
+function showPlayCtl() { document.getElementById('play-ctl').classList.remove('hidden'); }
+function hidePlayCtl() {
+  const ctl = document.getElementById('play-ctl');
+  if (ctl) ctl.classList.add('hidden');
+  pcSeeking = false;
+}
+
+/* 进度条拖动 seek（input 实时跳转，change 结束拖动） */
+document.getElementById('pc-progress').addEventListener('input', () => {
+  pcSeeking = true;
+  const mixer = getPlayMixer(), dur = getPlayDur();
+  if (mixer && dur > 0) mixer.time = document.getElementById('pc-progress').value / 1000 * dur;
+});
+document.getElementById('pc-progress').addEventListener('change', () => { pcSeeking = false; });
+
+/* 倍速按钮 */
+document.querySelectorAll('.pc-speed').forEach(b => b.addEventListener('click', () => {
+  actionSpeed = parseFloat(b.dataset.s);
+  document.querySelectorAll('.pc-speed').forEach(x => x.classList.toggle('active', x === b));
+  appendLine({ t: '播放速度：' + actionSpeed + '×', c: 'dim' });
+}));
+
+/* 快进 10 秒 */
+document.getElementById('pc-fwd').addEventListener('click', () => {
+  const mixer = getPlayMixer(), dur = getPlayDur();
+  if (mixer && dur > 0) mixer.time = Math.min(mixer.time + 10, dur);
+});
 
 function playAction(a, preClip) {
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
@@ -1349,6 +1448,7 @@ function playAction(a, preClip) {
     }
     currentAction = a.id;
     if (a.bgm) playBGM(a.bgm);
+    showPlayCtl();   /* 显示播放控制条（进度/倍速/快进） */
     appendLine({ t: '动作：' + a.name + ' 播放中（一次；再点停止；播放期间待机摇摆暂停）', c: 'ok' });
     updateActionUI();
   };
@@ -1848,7 +1948,8 @@ function animate() {
    * 动作播放时替代待机摇摆（动作自带姿态；helper 内部做 动画→ik，物理在下方手动接管）；
    * 关闭摇摆时写回基准姿态（历史遗留：关闭后残留最后一帧倾斜）。 */
   if (currentAction && actionHelper) {
-    actionHelper.update(dt);
+    actionHelper.update(dt * actionSpeed);   /* 倍速：只快进动画，物理仍按真实 dt（限幅 1/30 兜底） */
+    updatePlayCtl();                         /* 进度条每帧刷新 */
   } else if (physCfg.sway && sway) {
     applySway(t);
   } else if (sway) {
