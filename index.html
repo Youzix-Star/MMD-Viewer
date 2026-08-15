@@ -267,6 +267,13 @@
   #model-panel .mp-actions .mp-list { padding: 0; max-height: none; }
   #model-panel .mp-actions .mp-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; }
   #model-panel .mp-actions .mp-item.playing { border-color: var(--amber); background: #fff8ef; }
+  /* 动作项编辑按钮（✎：给动作加音乐/镜头，2026-08-16） */
+  #model-panel .mp-edit {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; margin-left: 8px;
+    border-radius: 6px; color: var(--dim); font-size: 14px; cursor: pointer;
+  }
+  #model-panel .mp-edit:hover { background: var(--surface2); color: var(--primary); }
   #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; max-height: 68vh; overflow-y: auto; overscroll-behavior: contain; }
   #phys-panel .pp-body::-webkit-scrollbar { width: 4px; }
   #phys-panel .pp-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
@@ -553,7 +560,7 @@
     <div id="import-modal" class="hidden">
       <div class="log-modal-card import-card">
         <div class="log-modal-head">
-          <span class="log-modal-title"><i class="material-icons">file_open</i>导入动作 <b>临时加载，刷新后消失</b></span>
+          <span class="log-modal-title"><i class="material-icons">file_open</i><span id="import-modal-title">导入动作</span> <b>临时加载，刷新后消失</b></span>
           <span class="log-modal-actions"><span id="import-close" title="关闭（Esc）"><i class="material-icons">close</i></span></span>
         </div>
         <div class="import-body">
@@ -1330,6 +1337,13 @@ function initActions() {
     btn.className = 'mp-item';
     btn.dataset.id = a.id;
     btn.appendChild(document.createTextNode(a.name));
+    /* 编辑按钮（✎）：给动作加音乐/镜头（2026-08-16）——stopPropagation 防触发播放 */
+    const edit = document.createElement('span');
+    edit.className = 'mp-edit material-icons';
+    edit.textContent = 'edit';
+    edit.title = '编辑：添加音乐 / 镜头';
+    edit.addEventListener('click', e => { e.stopPropagation(); openImportModal(a); });
+    btn.appendChild(edit);
     btn.addEventListener('click', () => playAction(a));
     list.appendChild(btn);
   }
@@ -1358,12 +1372,27 @@ function updateActionUI() {
 let importSeq = 0;   /* 导入动作的临时 id 序号 */
 const importPicked = { motion: null, cam: null, music: null };   /* 本次弹窗已选文件 */
 
-function openImportModal() {
+let importMode = 'import';   /* 'import' 新导入 | 'edit' 编辑已有动作（加音乐/镜头） */
+let editTarget = null;       /* 编辑模式的目标动作对象 */
+
+function openImportModal(target) {
+  importMode = target ? 'edit' : 'import';
+  editTarget = target || null;
   importPicked.motion = importPicked.cam = importPicked.music = null;
-  document.getElementById('import-motion-name').textContent = '未选择（.vmd 骨骼动作）';
+  document.getElementById('import-modal-title').textContent = importMode === 'edit'
+    ? '编辑动作：' + target.name
+    : '导入动作';
+  document.getElementById('import-motion-name').textContent = importMode === 'edit'
+    ? target.name + '（当前动作，可替换）'
+    : '未选择（.vmd 骨骼动作）';
+  document.getElementById('import-motion-name').classList.toggle('chosen', importMode === 'edit');
   document.getElementById('import-cam-name').textContent = '未选择（.vmd 相机动作，可选）';
-  document.getElementById('import-music-name').textContent = '未选择（音频，可选）';
-  ['motion', 'cam', 'music'].forEach(k => document.getElementById('import-' + k + '-name').classList.remove('chosen'));
+  document.getElementById('import-music-name').textContent = importMode === 'edit'
+    ? (target.bgm ? '当前音乐已配（可更换）' : '未选择（给此动作配音乐，可选）')
+    : '未选择（音频，可选）';
+  document.getElementById('import-cam-name').classList.remove('chosen');
+  document.getElementById('import-music-name').classList.toggle('chosen', importMode === 'edit' && !!target.bgm);
+  document.getElementById('import-ok').textContent = importMode === 'edit' ? '应用并播放' : '导入并播放';
   document.getElementById('import-modal').classList.remove('hidden');
 }
 function closeImportModal() { document.getElementById('import-modal').classList.add('hidden'); }
@@ -1382,7 +1411,27 @@ function vmdFileToClip(file, mesh) {
 
 function doImport() {
   const p = importPicked;
-  if (!mmdMesh) { appendLine({ t: '动作：请先加载模型再导入', c: 'warn' }); return; }
+  if (!mmdMesh) { appendLine({ t: '动作：请先加载模型再操作', c: 'warn' }); return; }
+  if (importMode === 'edit') {
+    /* 编辑模式：更新已有动作（音乐/镜头/动作均可替换，未选的保持原值） */
+    const a = editTarget;
+    if (!p.motion && !p.cam && !p.music) { appendLine({ t: '编辑：未选择任何修改项', c: 'warn' }); return; }
+    appendLine({ t: '动作：更新 ' + a.name + ' …', c: 'dim' });
+    const tasks = [];
+    if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { a.motionClip = r.clip; a.file = null; }));
+    if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { a.camClip = r.clip; }));
+    if (p.music)  a.bgm = URL.createObjectURL(p.music);
+    Promise.all(tasks).then(() => {
+      closeImportModal();
+      const what = [p.motion ? '动作' : '', p.cam ? '镜头' : '', p.music ? '音乐' : ''].filter(Boolean).join('/');
+      appendLine({ t: '动作：' + a.name + ' 已更新（' + what + '）', c: 'ok' });
+      playAction(a);   /* 应用并播放看效果 */
+    }).catch(e => {
+      console.error(e);
+      appendLine({ t: '编辑：解析失败: ' + e.message, c: 'err' });
+    });
+    return;
+  }
   if (!p.motion && !p.cam) { appendLine({ t: '导入：请至少选择一个动作或镜头文件', c: 'warn' }); return; }
   appendLine({ t: '动作：解析导入文件 …', c: 'dim' });
   const tasks = [];
