@@ -906,15 +906,16 @@ function applyPhysTuning(p) {
   const gSoft = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity * physCfg.softGrav, 0);
   const gSkirt = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity * SKIRT_GRAV, 0);
   const gFull = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity, 0);
-  /* Teto 前髪特调（2026-08-16）：mass=15 的大质量刘海 + 旋转弹簧 250 = 欠阻尼振荡
-   * （下坠→快速回弹循环，开风消失）。对 mass≥10 的头发刚体有效重力再降 80%
-   * （softGrav×0.2），让重力矩回到弹簧可承受范围——v3 微重力路线的质量加权版 */
+  /* Teto 马尾/前髪特调（2026-08-16）：type2 大质量头发刚体（位置被骨骼钉住、只旋转自由）
+   * = 欠阻尼旋转振荡（下坠→弹簧 150/250 回弹循环，开风消失）。
+   * 对 type2 且 mass≥3 的头发刚体有效重力再降 80%（softGrav×0.2）——
+   * 只减旋转下垂力矩、不影响被钉住的位置；type1（纯物理链）与轻刚体不触发 */
   const gSoftHeavy = new Ammo.btVector3(0, -9.8 * 10 * physCfg.gravity * physCfg.softGrav * 0.2, 0);
   for (const b of p.bodies) {
     const name = b.params.name;
     const isSoft = /髮|髪|ネクタイ/.test(name);   /* 头发+领带（面板"配件重力"滑块控制） */
     const isSkirt = /スカート/.test(name);
-    const isHeavy = isSoft && b.params.weight >= 10;   /* 异常大质量头发刚体（Teto 前髪 15） */
+    const isHeavy = isSoft && b.params.type === 2 && b.params.weight >= 3;   /* Teto 马尾(5~3)/前髪(15) */
     b.body.setGravity(isSkirt ? gSkirt : (isHeavy ? gSoftHeavy : (isSoft ? gSoft : gFull)));
   }
   Ammo.destroy(gSoft);
