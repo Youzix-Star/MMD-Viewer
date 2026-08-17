@@ -359,7 +359,7 @@
 - **发布**：历史重写后 force push 至 github.com/Youzix-Star/MMD-Viewer（main = f2216ef），本地/远端完全同步
 - **历史清理**（用户确认后执行 `git filter-repo`）：
   1. **抹除冰饭式初音未来全部历史**（21 blob ~25MB）——readme 禁二次配布，从全历史彻底清除
-  2. **邮箱隐私**：全部历史提交作者邮箱 `wxd1y12r@gmail.com` 改写为 GitHub noreply（含名字变体全覆盖）
+  2. **邮箱隐私**：全部历史提交作者邮箱改写为 GitHub noreply（2026-08-16 首次 filter-repo；2026-08-18 北辰二次 filter-repo 修复天衡阶段遗漏——详见下方「北辰接任」章）
   3. commit hash 全部重写（46 提交 → 新历史），force push 覆盖远端
 - **发布前双审**：3 轮并行审查——修复 P1×1（导入弹窗旧 clip 串味）与 P2/P3×N（vendor/字体许可、
   README 围栏、死链、动作列表限高等）
@@ -1112,3 +1112,62 @@ if (stageCanvas && stageCanvas.contains(e.target)) {
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## 🐛 2026-08-18 · 北辰接任：代码审查 + 全量 bug 修复
+
+> 三个并行子代理审查（JavaScript 逻辑 / CSS 兼容性 / 项目文档），发现并修复全部功能性 bug。
+
+### 安全：邮箱重写（P0）
+
+- **问题**：本地 git config 仍为旧邮箱 `wxd1y12r@gmail.com`，天衡阶段 50 个提交继续使用旧邮箱（含已推送 GitHub 的 35 个）
+- **修复**：`git config user.email` 改为 noreply → `git filter-repo` 重写全部 96 个提交 → remote 已恢复
+- **注意**：本次重写后所有 commit SHA 已变更（内容/作者名/时间不变）
+
+### P1 · 中等（1 项）
+
+1. **动作双击竞态**（行 1695/1742）：快速双击动作按钮 → 两个 `loadAnimation` 回调先后 `doPlay` → 第二次 `h.add()` 抛 "has already been added" 未捕获 → 触发红色致命条
+   - **修复**：加 `actionLoading` 状态锁，加载期间再点直接忽略
+
+### P2 · 一般（5 项）
+
+2. **切模型与 VMD 加载竞态**（行 1742-1748）：VMD 异步加载期间切换模型，迟到回调仍用旧骨骼 clip
+   - **修复**：记录 `meshWhenLoad`，回调回来比对，模型已换则丢弃
+3. **弹窗 closing 动画期间重开被强制隐藏**（行 803/1409/1821）：200ms `setTimeout` 不清理
+   - **修复**：三个弹窗统一 `clearTimeout` + `remove('closing')`
+4. **blob URL 从不 revoke**（行 1859/1893）：编辑覆盖 `a.bgm` 时旧 blob 不释放
+   - **修复**：覆盖前 `revokeObjectURL`
+5. **WebGL context lost 未处理**（行 887）：GPU 资源丢失后 rAF 循环死亡，整页冻结
+   - **修复**：监听 `webglcontextlost`/`webglcontextrestored`，暂停/恢复渲染循环
+6. **全局 error 监听过度升级**（行 750）：JS 运行时异常也被显示为红色致命条
+   - **修复**：只对有 `src`/`href` 的资源加载失败显示致命条
+
+### P3 · 轻微（8 项）
+
+7. **Esc 只关 log-modal**（行 873）：不关 import-modal 和 model-panel
+   - **修复**：按打开状态优先级依次关闭
+8. **copyLogs 失败仍显示"已复制"**（行 817）
+   - **修复**：`fallbackCopy` 返回布尔值，失败显示"复制失败"
+9. **ammoReady 无超时**（行 1003）：wasm 卡住时物理永久不可用无提示
+   - **修复**：15 秒超时 reject
+10. **无 constraints 模型 TypeError**（行 1250）
+    - **修复**：`mmd.constraints` 空数组兜底
+11. **manifest 空时静默空白**（行 1951）
+    - **修复**：提示"manifest.json 中无模型"
+12. **死代码清理**：`#action-file`（无 JS 引用）、`preClip` 参数（无人传值）、`a.camera`（从未赋值，三处三元简化）
+13. **3 个 CSS 变量未使用**：`--disabled`/`--elev-1`/`--r-lg` 已删除
+14. **文档数字漂移**：ISSUES.md 行数 1470→2400，PHYSICS.md savePhysCfg 18→19
+
+### 未修复（有意保留）
+
+- **Google Fonts 阻塞首次绘制**（行 7）：历史遗留，Noto Sans SC 未本地化，不动
+- **动画性能**：折叠动画用 `max-height/padding` 布局属性（尝试 `scaleY` 和 `will-change` 均因手感不对回滚）
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由北辰维护。*
