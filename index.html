@@ -662,7 +662,6 @@
         <div class="mp-actions-title">动作
           <span class="mp-import" id="action-import" title="浏览器导入 VMD 临时加载动作（不写入 manifest）">
             <i class="material-icons">file_open</i>导入
-            <input type="file" id="action-file" accept=".vmd" style="display:none">
           </span>
           <span id="action-note"></span>
         </div>
@@ -1498,7 +1497,7 @@ function setActionPaused(paused) {
   if (!a) return;
   const meshObj = actionHelper.objects.get(mmdMesh);
   const camObj = actionHelper.objects.get(camera);
-  const meshClip = a.motionClip || (!a.camera ? actionClips[aKey(a)] : null);
+  const meshClip = a.motionClip || actionClips[aKey(a)];
   const camClip = a.camClip || (a.camera ? actionClips[aKey(a)] : null);
   if (meshClip && meshObj && meshObj.mixer) {
     const act = meshObj.mixer.clipAction(meshClip);
@@ -1673,7 +1672,7 @@ document.getElementById('pc-fwd').addEventListener('click', () => {
   if (bgmAudio && !bgmAudio.paused) bgmAudio.currentTime = Math.min((bgmAudio.currentTime || 0) + 10, dur || 1e9);
 });
 let actionLoading = false;   /* 修复：动作异步加载期间防止重复点击（P1 竞态守卫） */
-function playAction(a, preClip) {
+function playAction(a) {
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
   if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
   if (actionLoading) { appendLine({ t: '动作：正在加载中，请稍候', c: 'dim' }); return; }   /* P1 守卫：加载期间忽略 */
@@ -1711,7 +1710,7 @@ function playAction(a, preClip) {
         });
       }
     }
-    const meshClip = a.motionClip || (!a.camera ? clip : null);
+    const meshClip = a.motionClip || clip;
     if (meshClip) {
       h.add(mmdMesh, { animation: meshClip, physics: false });   /* physics:false——物理由项目手动接管，避免双物理 */
       /* 播放一次不循环：mixer.clipAction 返回 helper 已创建的同一 action，
@@ -1755,14 +1754,13 @@ function playAction(a, preClip) {
     }
     doPlay(); return;
   }
-  if (preClip) { actionClips[aKey(a)] = preClip; doPlay(preClip); return; }   /* 直接播放（clip 已生成） */
   if (actionClips[aKey(a)]) { doPlay(actionClips[aKey(a)]); return; }
   appendLine({ t: '动作：加载 ' + a.name + ' …', c: 'dim' });
   actionLoading = true;   /* P1 守卫：标记加载中 */
   const meshWhenLoad = mmdMesh;   /* P2 守卫：记录发起加载时的 mesh，回调回来比对 */
   /* 修复(2026-08-15)：r160 MMDAnimationHelper 直接吃 AnimationClip，不吃 VMD 原始数据——
    * 用 loadAnimation 按目标类型转换（模型→build(vmd,mesh)，相机→buildCameraAnimation(vmd)） */
-  loader.loadAnimation(a.file, a.camera ? camera : mmdMesh, clip => {
+  loader.loadAnimation(a.file, mmdMesh, clip => {
     actionLoading = false;   /* P1 守卫：加载完成 */
     if (mmdMesh !== meshWhenLoad) {   /* P2 守卫：加载期间切了模型，丢弃过期 clip */
       appendLine({ t: '动作：' + a.name + ' 加载完成但模型已切换，已丢弃', c: 'dim' });
