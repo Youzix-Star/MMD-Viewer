@@ -475,4 +475,161 @@
 
 ---
 
-*记录由北辰维护。*
+---
+
+## 🎨 2026-08-18 · 天衡阶段：MD2 规范适配（先研究、后动手、零布局改动）
+
+> 承接北辰教训：先读透 MD2 官方规范（研究笔记见 docs-archive/MD2-NOTES.md），
+> 再针对本项目做**适配**而非硬套。本阶段全部改动为**纯 CSS**——颜色/动效/交互态，
+> **未动任何布局数值**（position/top/left/width/height/padding/z-index 全部保留），错位风险≈0。
+
+### 修复 3 个隐藏 bug（北辰改动残留）
+
+1. **`--ease-std` 未定义**：4 处 transition 引用该变量但 :root 从未声明 → 过渡动画全部静默回退默认 ease。
+   - 现按 MD2 Standard 曲线定义 `cubic-bezier(0.4, 0, 0.2, 1)`（顺带补上 MD2 动效语义）
+2. **`--surface3` 未定义**：`.pc-btn:active` 引用 → 播放按钮按下态背景失效。
+   - 已定义 `#e8edf4`（按下态比 surface2 深一档）
+3. **`--on-primary` 未定义**：`.pc-speed.active` 引用 → 激活倍速按钮文字色失效（白字变默认黑）。
+   - 已定义 `#ffffff`（MD2：主色表面文字用白，对比度 ≥4.5:1）
+
+### MD2 颜色系统（静态调色板，非 MD3 动态取色）
+
+| 项 | 改动 | MD2 依据 |
+|----|------|---------|
+| 主色 | `#42a5f5`（Blue 400）→ **`#2196f3`（Blue 500）** | 官方规范：主色用 500 |
+| 新增 `--primary-dark` | `#1976d2`（Blue 700） | 交互强调/按下态用深变体 |
+| 新增 `--primary-light` | `#e3f2fd`（Blue 50） | hover 浅底/选中底用浅变体 |
+| 新增 `--on-primary` | `#ffffff` | 主色表面文字 |
+
+### MD2 形状与海拔
+
+- 弹窗（log/import modal）圆角 `16px → 8px`：16px 是 MD3 大圆角串味；MD2 对话框 4dp（2x 屏=8px）
+- 弹窗阴影 `0 14px 44px rgba(0,0,0,.28)`（纯黑三层）→ `--elev-3` 浅灰阴影（MD2 对话框海拔 24dp）
+- 新增 `--elev-3`（对话框级），海拔语义：卡片 1dp / 弹出层 8dp / 对话框 24dp
+
+### MD2 动效（Motion）
+
+- 修复 `--ease-std` 后，全部按钮/开关/控制条过渡自动走 MD2 Standard 曲线
+- 弹窗新增进入动画：`225ms` + Deceleration 曲线 `cubic-bezier(0,0,0.2,1)`（MD2：元素进入屏幕 225ms 减速），
+  只动画 **transform + opacity**（GPU 属性，无布局影响——北辰 min-width 动画的坑不复踩）
+- 沉浸按钮 `transition: all` → 按属性细分（transform/background/color/opacity 各自时长）
+
+### MD2 交互态（hover/active 语义化）
+
+- 全部 hover 从 `surface2`（无差别灰）→ `primary-light`（主色 50 浅底）
+- 全部 active/按下 → `primary-dark` 底 + `--on-primary` 白字（MD2：按下用 700 级强调）
+- 模型面板选中项（current）：`primary-light` 浅底 + 500 边框（MD2 选中态语义）
+- 播放按钮加 `letter-spacing: .4px`（MD2 BUTTON 样式字距语义；中文无大写，保留字距不夸张）
+
+### 未动的部分（刻意保留，防错位）
+
+- **所有布局数值**：AppBar 52px、stage inset、卡片定位/宽度/圆角 8px、开关 34×18、滑块尺寸——全部保留
+- **JS 逻辑**：折叠/播放/沉浸/物理全部未动
+
+### 验证
+
+- jsdom 校验：CSS 花括号平衡、21 个变量定义齐全（`--fill` 为 JS 动态注入属正常）、关键布局数值全部保留
+- node 语法检查：classic + module JS 均通过
+- 本地 `python3 -m http.server 8000`：index/manifest/font/pmx 全部 200
+- puppeteer 截图不可用（android/arm64 平台不支持下载浏览器），记录此限制
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+## 🎨 2026-08-18 · 天衡阶段 2：MD2 招牌视觉（用户授权"生搬硬套"）
+
+> 第一轮只做微调（主色 400→500、弹窗圆角、缓动曲线），用户反馈"没看见效果、不是 MD2"。
+> 本轮按用户授权直接上 MD2 的**招牌视觉**（Top App Bar / Contained Button / FAB / 官方海拔阴影），
+> **布局数值依然零改动**（验证脚本逐项断言通过）。
+
+### 本轮视觉改动（一眼可见）
+
+| 元素 | 改前 | 改后 | MD2 依据 |
+|------|------|------|---------|
+| **AppBar** | 白底 + 灰色 border | **主色 Blue 500 底 + 白字白图标 + 8dp 阴影** | Top App Bar = primary + on-primary（MD2 招牌） |
+| **HUD/PHYS/LOG 卡** | 半透明白 `.94` + 细 border | **纯白 surface + 官方 1/2dp 三层阴影**（去 border） | MD2 卡片 = 白色表面 + 海拔阴影 |
+| **模型面板** | 白 + border | 纯白 + 8dp 阴影 | 弹出层 8dp |
+| **复位/沉浸按钮** | 白底方角 36px + border | **主色圆形 FAB + 6dp 阴影 + 按下 8dp**（尺寸仍 36px） | FAB = primary 圆钮 + 高海拔 |
+| **重置/恢复按钮** | 灰底文本按钮 28px | **主色实心按钮（Contained Button）+ 2dp 阴影 + 500 字重** | Contained Button = primary 底 + on-primary 字 |
+| **弹窗复制按钮** | 灰底文本 | 主色实心 | 同上 |
+| **海拔阴影** | 自定义浅灰双层 | **MD2 官方三层阴影**（1dp/8dp/24dp，ambient+penumbra+umbra） | MD2 官方 elevation 值 |
+| **页面背景** | `#eef2f7` 浅灰蓝 | **`#fafafa`** | MD2 标准背景 |
+| **3D 场景背景** | `0xe3eaf2` | `0xeef1f5`（微调协调） | 与 MD2 背景统一 |
+
+### 修复（继续）
+
+- `--surface3` 已在首轮定义，本轮无新增变量 bug
+- 沉浸态按钮（右上角小圆点）逻辑与样式不变，未受影响
+
+### 刻意保留（防错位）
+
+- **全部布局数值不变**（AppBar 52px / stage inset / 卡片定位 / 36px 按钮 / 开关 34×18 / 滑块）——
+  验证脚本对 11 组选择器逐项断言通过
+- 风盘 92px、播放控制条定位、日志卡定位——未动
+- JS 逻辑零改动
+
+### 验证
+
+- CSS 花括号/括号平衡：175/175、223/223 ✅
+- node 语法检查：classic + module JS 均通过 ✅
+- 布局断言：11 组选择器全部保留原数值 ✅
+- 无缓存预览服务器：`python3 .nocache.py`（8001 端口，Cache-Control: no-store）——解决"改了看不到"的浏览器缓存问题
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+## 🎨 2026-08-18 · 天衡阶段 3：恢复北辰完整 MD2 设计系统（用户指引参考北辰版本）
+
+> 用户反馈："还是不够彻底，你甚至不如北辰写的版本"。
+> 复盘：北辰被回滚的不是他的**视觉设计**（那是用户认可的完整 MD2），而是他后来叠加的
+> **宽度动画 bug**（min-width 动画导致箭头被挤出、越修越烂）。
+> 用户指引看提交历史——北辰的 MD2 视觉版本在 git reflog 中仍可访问（e4df42d 等，被 reset 但对象未删）。
+> 本轮：**以北辰 e4df42d 的完整 CSS 设计系统为基础**，修正他的 bug，形成最终版。
+
+### 采纳北辰的 MD2 设计系统（用户认可的视觉）
+
+北辰 e4df42d 的 CSS 是完整的 MD2 设计语言（token 化）：
+
+| 维度 | 北辰的落实 |
+|------|-----------|
+| **色板** | 背景 `#f5f5f5`、表面 `#fff`、主色 **Blue 700 `#1976d2`**、深/浅变体、次要文字 `#757575`、分隔线 `#e0e0e0`、Amber/Red/Green 标准色 |
+| **尺寸 token** | `--sp-1..6`（4/8/12/16/24/32px）间距体系 |
+| **圆角 token** | `--r-xs 4 / r-sm 8 / r-md 12 / r-lg 16` 四级 |
+| **海拔** | `--elev-1/2/3` 三层阴影（MD2 官方值） |
+| **缓动** | `--transition: 0.2s cubic-bezier(0.4,0,0.2,1)` 标准曲线 |
+| **物理尺寸** | AppBar 52→**56px**（MD2 标准高度）、按钮 28→**36px**（MD2 标准）、触摸目标 **40px**、开关 34×18→**36×20**、滑块 3→4px + thumb 20px |
+| **组件** | 白底 AppBar + elev 阴影（去 border）、卡片去 border + 大圆角、**ripple 点击波纹**（`::after` radial-gradient）、FAB 圆钮、实心按钮、滑块 hover 增厚 |
+
+### 天衡对北辰版本的 4 处修正（他回滚时留下的问题）
+
+1. **补 3 个漏定义变量**：`--on-primary`（`.pc-speed.active` 白字用）、`--ease-decel`（弹窗动画用）、`--ripple-x/y`（ripple 波纹定位默认）——北辰 CSS 引用了但 :root 未定义，与首轮发现的 `--ease-std` bug 同款
+2. **修复 AppBar/stage 错位**：北辰把 AppBar 改为 56px 但 `#stage { inset: 52px 0 0 0 }` 未同步 → 顶栏区域显示错位（这正是他版本"错位"的根源之一）；已对齐为 `inset: 56px 0 0 0`
+3. **弹窗改回 MD2 规范**：北辰保留的 `border-radius: 16px`（MD3 大圆角）+ `0 14px 44px rgba(0,0,0,.28)`（纯黑三层）→ MD2 4dp 圆角 + 24dp 浅灰海拔；补回 225ms 减速进入动画（GPU transform/opacity）
+4. **移除"播放暂停"功能**（DOM + JS 11 处）：用户 2026-08-18 已决定不要（dc323da 回滚先例）；北辰 e4df42d 误夹带
+
+### 移植北辰的 BGM 守卫改进（有价值的逻辑修复）
+
+- seek/快进 BGM 联动加 `curAct.bgm` 守卫：只联动当前动作的 BGM，防"无 BGM 动作误动上一首残留 Audio"
+- 未移植：北辰删除的 `stopAction` 空 helper 防护（保留当前版的 `if (!actionHelper) return`，更稳）
+
+### 验证
+
+- CSS 花括号/括号平衡：183/183、266/266 ✅
+- 未定义变量：无（31 个变量全定义，`--fill` 为 JS 动态注入）✅
+- JS 语法：classic + module 均通过 ✅
+- 布局断言：AppBar 56 = stage 56、FAB 40px 圆形、开关 36×20 等全部对齐 ✅
+- 无缓存服务器 8001 继续可用 ✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*

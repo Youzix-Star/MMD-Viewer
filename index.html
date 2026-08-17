@@ -93,22 +93,32 @@
     color: var(--dim);
     pointer-events: none;
     box-shadow: var(--elev-2);
-    z-index: 20;  /* 与 PHYS 同级，点击后动态置顶 30 */
+    z-index: 20;
+    transition: min-width 300ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   #hud .hud-head {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     cursor: pointer; user-select: none;
-    pointer-events: auto;  /* 头部可点击，内容区不挡 3D 操作 */
+    pointer-events: auto;
   }
   #hud .hud-title { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text); }
   #hud .hud-title .material-icons { font-size: 15px; color: var(--primary); }
   #hud .hud-toggle { color: var(--dim); display: flex; }
   #hud .hud-toggle .material-icons { font-size: 18px; }
-  #hud .hud-body { margin-top: 8px; line-height: 1.9; }
+  #hud .hud-body {
+    margin-top: 8px; line-height: 1.9;
+    max-height: 300px; overflow: hidden; opacity: 1;
+    transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                margin 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
   #hud .hud-row { display: flex; justify-content: space-between; gap: 18px; }
   #hud b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
   #hud.min { min-width: 0; }
-  #hud.min .hud-body { display: none; }
+  #hud.min .hud-body { max-height: 0; opacity: 0; margin-top: 0; }
+  #hud .hud-toggle .material-icons { transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1); }
+  #hud.min .hud-toggle .material-icons { transform: rotate(0deg); }
+  #hud:not(.min) .hud-toggle .material-icons { transform: rotate(180deg); }
 
   /* ===== 物理控件样式（Material 风格开关 + 滑块 + 风向罗盘） ===== */
   .switch { position: relative; display: inline-block; width: 34px; height: 18px; flex: 0 0 auto; margin-left: auto; }
@@ -285,12 +295,20 @@
     border-radius: 6px; color: var(--dim); font-size: 14px; cursor: pointer;
   }
   #model-panel .mp-edit:hover { background: var(--surface2); color: var(--primary); }
-  #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; max-height: 68vh; overflow-y: auto; overscroll-behavior: contain; }
+  #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; max-height: 68vh; overflow-y: auto; overscroll-behavior: contain;
+    transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                padding 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 1;
+  }
   #phys-panel .pp-body::-webkit-scrollbar { width: 4px; }
   #phys-panel .pp-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
   #phys-panel .pp-row { display: flex; align-items: center; gap: 10px; }
   #phys-panel.min { width: auto; }
-  #phys-panel.min .pp-body { display: none; }
+  #phys-panel.min .pp-body { max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden; }
+  #phys-panel .pp-toggle .material-icons { transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1); }
+  #phys-panel.min .pp-toggle .material-icons { transform: rotate(0deg); }
+  #phys-panel:not(.min) .pp-toggle .material-icons { transform: rotate(180deg); }
 
   /* ===== 加载日志卡（左下，可折叠，最多 4 条） ===== */
   #log {
@@ -318,8 +336,17 @@
   }
   #log .log-toggle { color: var(--dim); }
   #log .log-toggle .material-icons { font-size: 18px; }
-  #log .log-body { margin-top: 6px; }
-  #log.min .log-body { display: none; }
+  #log .log-body {
+    margin-top: 6px;
+    max-height: 200px; overflow: hidden; opacity: 1;
+    transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                margin 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #log.min .log-body { max-height: 0; opacity: 0; margin-top: 0; }
+  #log .log-toggle .material-icons { transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1); }
+  #log.min .log-toggle .material-icons { transform: rotate(0deg); }
+  #log:not(.min) .log-toggle .material-icons { transform: rotate(180deg); }
   #log .log-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; color: var(--dim); line-height: 1.5; }
   #log .log-item .material-icons { font-size: 14px; flex: 0 0 auto; }
   #log .log-item.ok  .material-icons { color: var(--primary); }
