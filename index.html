@@ -1020,17 +1020,19 @@ const loader = new MMDLoader(texManager);
 
 let modelLabel = 'White.pmx';  /* 当前模型名（日志用） */
 
-/* PHYS-1：Ammo.js（Bullet wasm）异步初始化 */
+/* PHYS-1：Ammo.js（Bullet wasm）异步初始化（含超时守卫） */
 const ammoReady = new Promise((resolve, reject) => {
   if (typeof Ammo === 'undefined') {
     reject(new Error('Ammo.js 脚本未加载（CDN 失败?）'));
     return;
   }
+  const timer = setTimeout(() => reject(new Error('Ammo.js 初始化超时（wasm 加载卡住?）')), 15000);
   Ammo().then(lib => {
+    clearTimeout(timer);
     Ammo = lib;   /* 全局替换为物理库实例（MMDPhysics 内部直接使用 Ammo.xxx） */
     appendLine({ t: '[ PHYS ] Ammo.js 就绪（Bullet wasm）', c: 'ok' });
     resolve();
-  }, reject);
+  }, err => { clearTimeout(timer); reject(err); });
 });
 
 /* 物理参数（PHYS 面板可调；切换模型/复位视角均不重置） */
