@@ -1747,14 +1747,20 @@ function playAction(a, preClip) {
   if (actionClips[aKey(a)]) { doPlay(actionClips[aKey(a)]); return; }
   appendLine({ t: '动作：加载 ' + a.name + ' …', c: 'dim' });
   actionLoading = true;   /* P1 守卫：标记加载中 */
+  const meshWhenLoad = mmdMesh;   /* P2 守卫：记录发起加载时的 mesh，回调回来比对 */
   /* 修复(2026-08-15)：r160 MMDAnimationHelper 直接吃 AnimationClip，不吃 VMD 原始数据——
    * 用 loadAnimation 按目标类型转换（模型→build(vmd,mesh)，相机→buildCameraAnimation(vmd)） */
   loader.loadAnimation(a.file, a.camera ? camera : mmdMesh, clip => {
     actionLoading = false;   /* P1 守卫：加载完成 */
+    if (mmdMesh !== meshWhenLoad) {   /* P2 守卫：加载期间切了模型，丢弃过期 clip */
+      appendLine({ t: '动作：' + a.name + ' 加载完成但模型已切换，已丢弃', c: 'dim' });
+      return;
+    }
     actionClips[aKey(a)] = clip;
     doPlay(clip);
   }, undefined, err => {
     actionLoading = false;   /* P1 守卫：加载失败也解除 */
+    if (mmdMesh !== meshWhenLoad) return;   /* P2 守卫：模型已换，静默忽略 */
     console.error(err);
     appendLine({ t: '动作：' + a.name + ' 加载失败: ' + err.message, c: 'err' });
   });
