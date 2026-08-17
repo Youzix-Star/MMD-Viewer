@@ -30,23 +30,21 @@
     --dim: rgba(0,0,0,.60);   /* MD2 medium-emphasis text */
     --disabled: rgba(0,0,0,.38); /* MD2 disabled text */
     --primary: #1976d2;       /* MD2 Blue 700 */
-    --primary-variant: #1565c0; /* MD2 Blue 800 */
     --on-primary: #ffffff;    /* MD2 text on primary */
-    --secondary: #03dac6;     /* MD2 Teal 200 */
     --amber: #ff9800;         /* MD2 Orange 500 */
     --red: #b00020;           /* MD2 error color */
-    --elev-0: none;
     --elev-1: 0 2px 1px -1px rgba(0,0,0,.2), 0 1px 1px 0 rgba(0,0,0,.14), 0 1px 3px 0 rgba(0,0,0,.12);
     --elev-2: 0 3px 1px -2px rgba(0,0,0,.2), 0 2px 2px 0 rgba(0,0,0,.14), 0 1px 5px 0 rgba(0,0,0,.12);
     --elev-4: 0 2px 4px -1px rgba(0,0,0,.2), 0 4px 5px 0 rgba(0,0,0,.14), 0 1px 10px 0 rgba(0,0,0,.12);
     --elev-6: 0 3px 5px -1px rgba(0,0,0,.2), 0 6px 10px 0 rgba(0,0,0,.14), 0 1px 18px 0 rgba(0,0,0,.12);
     --elev-8: 0 5px 5px -3px rgba(0,0,0,.2), 0 8px 10px 1px rgba(0,0,0,.14), 0 3px 14px 2px rgba(0,0,0,.12);
-    --elev-12: 0 7px 8px -4px rgba(0,0,0,.2), 0 12px 17px 2px rgba(0,0,0,.14), 0 5px 22px 4px rgba(0,0,0,.12);
-    --elev-16: 0 8px 10px -5px rgba(0,0,0,.2), 0 16px 24px 2px rgba(0,0,0,.14), 0 6px 30px 5px rgba(0,0,0,.12);
     --elev-24: 0 11px 15px -7px rgba(0,0,0,.2), 0 24px 38px 3px rgba(0,0,0,.14), 0 9px 46px 8px rgba(0,0,0,.12);
     --r-lg: 12px;
     --r-md: 8px;
     --r-sm: 4px;
+    --ease-std: cubic-bezier(0.4, 0, 0.2, 1);   /* MD2 Standard 曲线（修复：此前被引用但从未定义，过渡全部静默失效） */
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);   /* MD2 Deceleration：元素进入屏幕（225ms） */
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);   /* MD2 Acceleration：元素离开屏幕（195ms） */
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -91,10 +89,11 @@
     padding: 8px 14px;
     font-size: 12px;
     color: var(--dim);
-    pointer-events: none;
+    pointer-events: none;   /* 头部可点击，内容区不挡 3D 操作 */
     box-shadow: var(--elev-2);
     z-index: 20;
-    transition: min-width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    /* 修复(2026-08-18 天衡)：删除 min-width 过渡——与 body max-height 动画双跑会让卡片宽度收缩到 0
+     * （北辰"卡片宽度动画、箭头被挤出"回滚根源）；只保留 body 高度展开，卡片宽度恒定 172px */
   }
   #hud .hud-head {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -108,15 +107,15 @@
   #hud .hud-body {
     margin-top: 8px; line-height: 1.9;
     max-height: 300px; overflow: hidden; opacity: 1;
-    transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
-                margin 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: max-height 300ms var(--ease-std),
+                opacity 300ms var(--ease-std),
+                margin 300ms var(--ease-std);
   }
   #hud .hud-row { display: flex; justify-content: space-between; gap: 18px; }
   #hud b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
-  #hud.min { min-width: 0; }
-  #hud.min .hud-body { max-height: 0; opacity: 0; margin-top: 0; }
-  #hud .hud-toggle .material-icons { transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1); }
+  #hud.min .hud-body { max-height: 0; opacity: 0; margin-top: 0; }   /* 折叠只收高度，宽度不变（修 min-width:0 溢出） */
+  /* 折叠箭头：统一用 expand_more 基图标，CSS 旋转表达方向（修复(2026-08-18)：JS innerHTML 换图标与 rotate 叠加导致方向反/动画失效） */
+  #hud .hud-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #hud.min .hud-toggle .material-icons { transform: rotate(0deg); }
   #hud:not(.min) .hud-toggle .material-icons { transform: rotate(180deg); }
 
@@ -296,17 +295,17 @@
   }
   #model-panel .mp-edit:hover { background: var(--surface2); color: var(--primary); }
   #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; max-height: 68vh; overflow-y: auto; overscroll-behavior: contain;
-    transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
-                padding 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: max-height 300ms var(--ease-std),
+                opacity 300ms var(--ease-std),
+                padding 300ms var(--ease-std);
     opacity: 1;
   }
   #phys-panel .pp-body::-webkit-scrollbar { width: 4px; }
   #phys-panel .pp-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
   #phys-panel .pp-row { display: flex; align-items: center; gap: 10px; }
-  #phys-panel.min { width: auto; }
+  /* 修复(2026-08-18)：删除 #phys-panel.min { width: auto }——折叠时宽度收缩会与高度动画叠加（HUD min-width bug 同源），宽度恒定 252px */
   #phys-panel.min .pp-body { max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden; }
-  #phys-panel .pp-toggle .material-icons { transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1); }
+  #phys-panel .pp-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #phys-panel.min .pp-toggle .material-icons { transform: rotate(0deg); }
   #phys-panel:not(.min) .pp-toggle .material-icons { transform: rotate(180deg); }
 
@@ -339,12 +338,12 @@
   #log .log-body {
     margin-top: 6px;
     max-height: 200px; overflow: hidden; opacity: 1;
-    transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
-                margin 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: max-height 300ms var(--ease-std),
+                opacity 300ms var(--ease-std),
+                margin 300ms var(--ease-std);
   }
   #log.min .log-body { max-height: 0; opacity: 0; margin-top: 0; }
-  #log .log-toggle .material-icons { transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1); }
+  #log .log-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #log.min .log-toggle .material-icons { transform: rotate(0deg); }
   #log:not(.min) .log-toggle .material-icons { transform: rotate(180deg); }
   #log .log-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; color: var(--dim); line-height: 1.5; }
@@ -387,13 +386,13 @@
     background: var(--bg); border: none; border-radius: 8px;
     color: var(--text); font-size: 12px; cursor: pointer;
   }
-  .log-modal-actions button:hover { background: var(--primary); color: #fff; }
+  .log-modal-actions button:hover { background: var(--primary); color: var(--on-primary); }   /* 修复：用 --on-primary 替代硬编码 #fff */
   .log-modal-actions span {
     display: flex; align-items: center; justify-content: center;
     width: 26px; height: 26px;
     color: var(--dim); cursor: pointer; border-radius: 8px;
   }
-  .log-modal-actions span:hover { background: var(--primary); color: #fff; }  /* 历史遗留：曾用浅底红字，与 button 视觉不统一 */
+  .log-modal-actions span:hover { background: var(--primary); color: var(--on-primary); }  /* 修复：用 --on-primary 替代硬编码 #fff */
   .log-modal-actions .material-icons { font-size: 16px; }
   .log-modal-body {
     flex: 1; overflow-y: auto; padding: 10px 16px;
@@ -476,7 +475,7 @@
     box-shadow: var(--elev-6); padding: 8px 12px 10px; z-index: 15;
     display: flex; flex-direction: column; gap: 6px;
     font-size: 11px; color: var(--dim);
-    transition: bottom .2s var(--ease-std);   /* 日志展开/折叠时平滑上移/回落 */
+    transition: bottom 300ms var(--ease-std);   /* 日志展开/折叠时平滑上移/回落（300ms 对齐 log 动画，防追尾抖动） */
   }
   #play-ctl.hidden { display: none; }
   .pc-main { display: flex; align-items: center; gap: 10px; }
@@ -635,7 +634,7 @@
       <div class="log-head">
         <span class="log-title"><i class="material-icons">terminal</i>日志</span>
         <span class="log-expand" id="log-expand" title="展开详细日志"><i class="material-icons">open_in_full</i></span>
-        <span class="log-toggle"><i class="material-icons">expand_less</i></span>
+        <span class="log-toggle"><i class="material-icons">expand_more</i></span>
       </div>
       <div class="log-body" id="log-list"></div>
     </div>
@@ -1451,8 +1450,7 @@ function showPlayCtl() {
   if (log) {
     logWasMin = log.classList.contains('min');
     log.classList.add('min');
-    const tg = log.querySelector('.log-toggle i');
-    if (tg) tg.textContent = 'expand_more';
+    /* 修复(2026-08-18)：不再手动换图标文字——箭头方向由 CSS rotate 统一控制（防 innerHTML 重建致动画失效/方向反） */
   }
   document.getElementById('play-ctl').classList.remove('hidden');
 }
@@ -1462,8 +1460,7 @@ function hidePlayCtl() {
   const log = document.getElementById('log');
   if (log && !logWasMin) {
     log.classList.remove('min');
-    const tg = log.querySelector('.log-toggle i');
-    if (tg) tg.textContent = 'expand_less';
+    /* 修复(2026-08-18)：同上，CSS rotate 接管方向 */
   }
   pcSeeking = false;
 }
@@ -1827,8 +1824,7 @@ document.addEventListener('click', e => {
   if (physCard && !physCard.classList.contains('min') && !physCard.contains(e.target) && !e.target.closest('.pp-models')) {
     physCard.classList.add('min');
     physCard.style.zIndex = '20';   /* 收起回落基础层级，避免压住 HUD */
-    const tg = physCard.querySelector('.pp-toggle i');
-    if (tg) tg.textContent = 'expand_more';
+    /* 修复(2026-08-18)：不手动换图标，CSS rotate 接管方向 */
   }
 });
 
@@ -2171,26 +2167,20 @@ if (btnReset) btnReset.addEventListener('click', () => {
 /* 日志卡：点击头部展开/收起（默认展开） */
 const logCard = document.getElementById('log');
 if (logCard) {
-  const logTg = logCard.querySelector('.log-toggle');
   logCard.querySelector('.log-head').addEventListener('click', () => {
     logCard.classList.toggle('min');
-    logTg.innerHTML = logCard.classList.contains('min')
-      ? '<i class="material-icons">expand_more</i>'
-      : '<i class="material-icons">expand_less</i>';
+    /* 修复(2026-08-18)：不换图标文字——CSS rotate 统一控制箭头方向（原 innerHTML 重建破坏过渡动画） */
   });
 }
 
 /* HUD 详情卡：点击头部展开/收起 */
 const hudEl = document.getElementById('hud');
 if (hudEl) {
-  const hudTg = hudEl.querySelector('.hud-toggle');
   hudEl.querySelector('.hud-head').addEventListener('click', () => {
     const wasMin = hudEl.classList.contains('min');
     hudEl.classList.toggle('min');
     if (wasMin) raiseCardTop(hudEl);   /* 仅展开时置顶（历史遗留：折叠时也置顶，与 PHYS 不对称） */
-    hudTg.innerHTML = hudEl.classList.contains('min')
-      ? '<i class="material-icons">expand_more</i>'
-      : '<i class="material-icons">expand_less</i>';
+    /* 修复(2026-08-18)：不换图标文字——CSS rotate 统一控制箭头方向 */
   });
 }
 /* PHYS 卡片折叠（小卡片可收起；MODELS 按钮不触发折叠；展开时置顶——后展开者在上） */
@@ -2199,8 +2189,7 @@ if (physCard) physCard.querySelector('.pp-head').addEventListener('click', e => 
   if (e.target.closest('.pp-models')) return;
   const wasMin = physCard.classList.contains('min');
   physCard.classList.toggle('min');
-  const tg = physCard.querySelector('.pp-toggle i');
-  if (tg) tg.textContent = physCard.classList.contains('min') ? 'expand_more' : 'expand_less';
+  /* 修复(2026-08-18)：不换图标文字——CSS rotate 统一控制箭头方向 */
   if (wasMin) raiseCardTop(physCard);   /* 展开时置顶 30，其余回落 20（MODELS 固定 40 最上） */
 });
 animate();

@@ -633,3 +633,54 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## 🐛 2026-08-18 · 修复：北辰最终版 10 项问题（天衡审查）
+
+> 用户指令：检查北辰代码中的问题（"肯定是有问题的"），全部修复。
+> 审查基线：d6c9914（北辰最终版）。修复原则：**不动用户认可的设计，只修 bug**。
+
+### P0 · 严重
+
+1. **`--ease-std` 未定义**（3 处引用：play-ctl bottom / 进度条 thumb / pc-btn）
+   → :root 补定义 MD2 Standard 曲线 `cubic-bezier(0.4,0,0.2,1)`；顺带补 `--ease-decel`/`--ease-accel`
+2. **折叠箭头方向反转**：JS `innerHTML` 换图标（expand_more/less）与 CSS `rotate(180deg)` 叠加
+   → 展开态图标朝下 + innerHTML 重建致过渡动画失效
+   → **统一方案**：JS 全部不再换图标文字（5 处：showPlayCtl/hidePlayCtl/日志/HUD/PHYS 折叠处理器
+   + 点击外部收起），图标固定 `expand_more`，方向全靠 CSS rotate；log 初始图标同步改 expand_more
+3. **HUD 折叠 = min-width + max-height 双动画**（回滚根源重现）
+   → 删除 `transition: min-width` 与 `#hud.min { min-width: 0 }`，只保留 body 高度展开，宽度恒定 172px
+
+### P1 · 中等
+
+4. **PHYS 折叠同源 bug**：`#phys-panel.min { width: auto }` 折叠时宽度收缩
+   → 删除，宽度恒定 252px
+5. **play-ctl 与日志动画耦合**：bottom 由 `log.offsetHeight` 每帧更新
+   → transition 时长 .2s→300ms 对齐 log 动画（播放中日志恒折叠，实测无追尾抖动）
+6. **弹窗按钮 hover 硬编码 `#fff`**（2 处）→ 改用 `var(--on-primary)`
+
+### P2 · 轻微
+
+7. **死变量清理**：`--secondary`/`--primary-variant`/`--elev-0/12/16`（零引用）→ 删除；
+   `--disabled` 保留（MD2 语义）
+8. **HUD pointer-events 注释补回**（"头部可点击，内容区不挡 3D 操作"）
+9. **`.nocache.py` 移出版本库**（`git rm --cached`，本地预览脚本不入库）
+10. **`.gitignore` 补 `*.py`/`*.pyc`/`__pycache__`**（防本地脚本误入库）
+
+### 验证
+
+- CSS 变量完整性：零未定义（`--fill` 为 JS 动态注入除外）✅
+- 括号平衡 177/177、226/226 ✅
+- JS 语法：classic + module 均通过 ✅
+- 布局断言：11 组选择器定位数值全部保留 ✅
+- 宽度收缩修复确认：min-width 动画 / PHYS width:auto / HUD min-width:0 均已删除 ✅
+- 残留检查：无 expand_more/less 换图标 JS、无硬编码曲线 ✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
