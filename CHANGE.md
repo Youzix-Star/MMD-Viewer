@@ -990,3 +990,44 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## ✨ 2026-08-18 · 修复：HUD 展开动画 + MODELS/弹窗关闭动画
+
+> 用户反馈：① 详情小卡片展开为中卡片时动画有问题；
+> ② 模型面板和日志弹窗只有打开动画，没有关闭动画。
+
+### 1. HUD 展开动画异常
+
+- **根因**：展开时 `style.width=''`（回落到 CSS auto）+ `style.minWidth=''`（瞬时恢复 172px）——
+  **min-width 无 transition 是瞬时生效的**，展开瞬间宽度被 min-width 顶到 172px，
+  width 过渡动画被破坏（看起来"跳一下"）
+- **修复**：新增 `cardExpandWidth(card)`——展开时**显式设置展开宽度 px**（PHYS 252 /
+  HUD max(172,内容宽) / LOG min(300, 视口)），两端都是具体 px → width 过渡平滑；
+  `min-width` 保持 0 不干扰。HUD 取 max(172, body.scrollWidth) 保持"长模型名可撑宽"语义
+
+### 2. MODELS 面板 / 弹窗关闭动画
+
+- **根因**：关闭直接移除 `.show`/加 `.hidden`（display:none）——只有进入动画
+- **修复**：
+  - CSS：新增 `@keyframes md-pop-out` / `md-dialog-out`（MD2 元素离开 = 195ms 加速曲线，
+    与进入方向相反）；`.closing` 类触发关闭动画（`animation-fill-mode: forwards`）
+  - JS：`hideModelPanel()` / `closeLogModal()` / `closeImportModal()` 先加 `.closing`
+    （播 195ms 动画）→ 200ms 后移除 `.show`/加 `.hidden`；带 `closing` 守卫防重复触发
+  - 所有关闭入口统一走动画：MODELS 的 ✕/点外部/选模型后，弹窗的 ✕/遮罩/Esc
+
+### 验证
+
+- JS 语法通过、CSS 190/190 平衡 ✅
+- 展开两端 px（252/172/300）→ width 过渡平滑 ✅
+- 进入动画（md-pop-in/md-dialog-in 225ms 减速）+ 关闭动画（md-pop-out/md-dialog-out
+  195ms 加速）齐全 ✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*

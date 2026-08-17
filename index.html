@@ -256,6 +256,11 @@
     display: block;
     animation: md-pop-in 225ms var(--ease-decel);   /* 功能(2026-08-18)：打开动画——MD2 弹出 225ms 减速进入，只动 transform/opacity */
   }
+  /* 关闭动画（2026-08-18）：JS 先加 .closing（播 195ms 加速离开）再移除 .show */
+  #model-panel.closing {
+    display: block;
+    animation: md-pop-out 195ms var(--ease-accel) forwards;
+  }
   @keyframes md-pop-in {
     from { opacity: 0; transform: translateY(-8px) scale(.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -264,6 +269,15 @@
   @keyframes md-dialog-in {
     from { opacity: 0; transform: translateY(16px) scale(.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  /* 关闭动画（2026-08-18）：MD2 元素离开屏幕 = 195ms 加速曲线（Acceleration），方向与进入相反 */
+  @keyframes md-pop-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(-8px) scale(.98); }
+  }
+  @keyframes md-dialog-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(16px) scale(.98); }
   }
   #model-panel .mp-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -388,6 +402,11 @@
     display: flex; flex-direction: column; overflow: hidden;
     margin-top: 5vh;   /* 居中基础上再下移一点 */
     animation: md-dialog-in 225ms var(--ease-decel);   /* 功能(2026-08-18)：打开大日志弹窗动画——225ms 减速进入（北辰版丢失，补回） */
+  }
+  /* 关闭动画（2026-08-18）：JS 先加 .closing（播 195ms 加速离开）再 .hidden——弹窗卡片动画反转 */
+  #log-modal.closing .log-modal-card,
+  #import-modal.closing .log-modal-card {
+    animation: md-dialog-out 195ms var(--ease-accel) forwards;
   }
   .log-modal-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -783,7 +802,14 @@ function openLogModal() {
   renderLogModal();
 }
 function closeLogModal() {
-  logModal.classList.add('hidden');
+  /* 2026-08-18：关闭动画——先播 195ms 加速离开（md-dialog-out），动画结束再隐藏。
+   * 直接加 .hidden 则无关闭动画（用户反馈"只有打开动画，没有关闭动画"） */
+  if (logModal.classList.contains('hidden') || logModal.classList.contains('closing')) return;
+  logModal.classList.add('closing');
+  setTimeout(() => {
+    logModal.classList.add('hidden');
+    logModal.classList.remove('closing');
+  }, 200);   /* 195ms 动画 + 余量 */
 }
 function copyLogs() {
   const txt = logArchive.map(it => it.t).join('\n');
@@ -919,9 +945,22 @@ function headContentWidth(card) {
   return Math.ceil(w);
 }
 
+/* 各卡片展开宽度（CSS 定义值；展开动画目标 = 此值，两端都是 px 才可平滑过渡）。
+ * HUD 取 max(172, 内容宽)——原 CSS min-width:172 语义是"至少 172，长模型名可撑更宽" */
+function cardExpandWidth(card) {
+  if (card.id === 'phys-panel') return 252;
+  if (card.id === 'hud') {
+    const body = card.querySelector('.hud-body');
+    return Math.max(172, body ? body.scrollWidth : 172);
+  }
+  if (card.id === 'log') return Math.min(300, window.innerWidth - 32);
+  return 0;
+}
+
 /* 折叠/展开统一入口（2026-08-18）：折叠时把卡片宽度锁定为头部内容宽（触发 width 过渡动画），
- * 展开时恢复展开宽度。宽度锁定让 body 留在文档流做 max-height/opacity 动画（文字淡入连贯），
- * 同时不被隐藏 body 内容撑宽（见 CHANGE.md 折叠动画演进记录） */
+ * 展开时显式设为展开宽度 px（修复(2026-08-18)：不能用 style.width='' 恢复 CSS——
+ * min-width 瞬时恢复 172px 会顶住 width 过渡，展开动画被破坏）。宽度锁定让 body 留在
+ * 文档流做 max-height/opacity 动画（文字淡入连贯），同时不被隐藏 body 内容撑宽 */
 function setCardCollapsed(card, min) {
   if (min) {
     const w = headContentWidth(card);
@@ -930,8 +969,8 @@ function setCardCollapsed(card, min) {
     card.classList.add('min');
   } else {
     card.classList.remove('min');
-    card.style.width = '';   /* 恢复 CSS 定义的展开宽度，触发 width 过渡 */
-    card.style.minWidth = '';   /* 恢复 CSS 定义的 min-width（HUD 172px） */
+    const w = cardExpandWidth(card);
+    if (w) card.style.width = w + 'px';   /* 显式展开宽（px→px 过渡平滑）；min-width 保持 0 不干扰 */
   }
 }
 
@@ -1357,7 +1396,20 @@ const modelList = document.getElementById('model-list');
 let currentId = null;
 
 function showModelPanel() {
-  modelPanel.classList.toggle('show');
+  const mp = document.getElementById('model-panel');
+  if (mp.classList.contains('show')) hideModelPanel();   /* 再点 = 关闭（带动画） */
+  else mp.classList.add('show');
+}
+
+/* 关闭模型面板（2026-08-18）：先播 195ms 加速离开动画，动画结束再移除 .show（display:none）。
+ * 直接移除 .show 则无关闭动画（用户反馈"只有打开动画，没有关闭动画"） */
+function hideModelPanel() {
+  const mp = document.getElementById('model-panel');
+  if (!mp.classList.contains('show') || mp.classList.contains('closing')) return;
+  mp.classList.add('closing');
+  setTimeout(() => {
+    mp.classList.remove('show', 'closing');
+  }, 200);   /* 195ms 动画 + 余量 */
 }
 
 /* ============================================================
@@ -1718,7 +1770,16 @@ function openImportModal(target) {
   document.getElementById('import-ok').textContent = importMode === 'edit' ? '应用并播放' : '导入并播放';
   document.getElementById('import-modal').classList.remove('hidden');
 }
-function closeImportModal() { document.getElementById('import-modal').classList.add('hidden'); }
+function closeImportModal() {
+  /* 2026-08-18：关闭动画（同 log-modal）——播 195ms 加速离开再隐藏 */
+  const im = document.getElementById('import-modal');
+  if (im.classList.contains('hidden') || im.classList.contains('closing')) return;
+  im.classList.add('closing');
+  setTimeout(() => {
+    im.classList.add('hidden');
+    im.classList.remove('closing');
+  }, 200);
+}
 
 /* 解析 VMD 为 clip（相机/动作自动识别） */
 function vmdFileToClip(file, mesh) {
@@ -1823,7 +1884,7 @@ document.getElementById('import-ok').addEventListener('click', doImport);
 /* 加载清单模型：直接走 MMDLoader.load（与白模同一验证路径，纹理目录由 extractUrlBase 自动解析） */
 let loadSeq = 0;   /* 模型加载序号：防"慢模型后完成覆盖新模型"竞态（历史遗留，已修复） */
 function loadServerModel(m) {
-  modelPanel.classList.remove('show');
+  hideModelPanel();   /* 2026-08-18：关闭带动画（原 classList.remove('show') 直接隐藏） */
   const seq = ++loadSeq;
   appendLine({ t: '加载模型: ' + m.name, c: 'dim' });
   modelLabel = m.name;
@@ -1878,11 +1939,11 @@ if (ppModels) ppModels.addEventListener('click', e => {
   showModelPanel();
 });
 const mpClose = document.querySelector('.mp-close');
-if (mpClose) mpClose.addEventListener('click', () => modelPanel.classList.remove('show'));
+if (mpClose) mpClose.addEventListener('click', hideModelPanel);
 document.addEventListener('click', e => {
   /* 点击非卡片区域：关闭模型面板 / 收起 PHYS 卡（2026-08-16：PHYS 展开后点外部关闭，与模型选择交互一致） */
   if (modelPanel.classList.contains('show') && !modelPanel.contains(e.target) && !e.target.closest('.pp-models')) {
-    modelPanel.classList.remove('show');
+    hideModelPanel();
   }
   /* 修复(2026-08-18)：PHYS 收缩逻辑——点击"空白"（卡片内部非交互区或卡片外）收缩；
    * 点击可交互元素（按钮/开关/滑块/罗盘/头部折叠钮/MODELS）不收缩。
