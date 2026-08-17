@@ -746,18 +746,18 @@
 <script>
 
   /* P1-3：全局错误兜底——module import 失败 / CDN 资源失败时显示可见错误条，不再静默黑屏。
-   * 历史遗留：<link> 样式表（Google Fonts）失败也弹致命条，但字体有回退栈、App 仍可用——只拦 script/img */
+   * 只拦截资源加载失败（有 e.target.src/href 的元素级 error），不拦截 JS 运行时异常 */
   window.addEventListener('error', function (e) {
     if (document.getElementById('fatal-error')) return;
     var t = e.target || {};
-    if (t.tagName && (t.tagName === 'LINK' || t.tagName === 'STYLE')) return;   /* 样式表失败不致命（字体有回退） */
+    if (!t.tagName || t.tagName === 'LINK' || t.tagName === 'STYLE') return;   /* 无 target = JS 异常；样式表不致命 */
     var src = t.src || t.href;
-    var msg = e.message || (src ? '资源加载失败: ' + src : '未知错误');
+    if (!src) return;   /* 无 src/href = 非资源加载错误，不显示致命条 */
     var el = document.createElement('div');
     el.id = 'fatal-error';
     el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;padding:10px 16px;' +
       'background:#e05050;color:#fff;font-size:12px;line-height:1.5;z-index:999;font-family:sans-serif;';
-    el.textContent = '加载错误: ' + msg;
+    el.textContent = '加载错误: ' + src;
     document.body.appendChild(el);
   }, true);
 </script>
