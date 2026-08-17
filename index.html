@@ -1237,6 +1237,7 @@ function setupPhysics(mesh) {
     updatePhysMeta(null);
     return;
   }
+  if (!mmd.constraints) mmd.constraints = [];   /* 修复：某些PMX无约束段，防 length 访问 TypeError */
   ammoReady.then(() => {
     if (mmdMesh !== mesh) return;   /* 等待 ammo 期间用户已切换模型 */
     try {
@@ -1996,8 +1997,9 @@ async function initModels() {
     const res = await fetch('manifest.json');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
+    const models = data.models || [];
     modelList.innerHTML = '';
-    for (const m of data.models || []) {
+    for (const m of models) {
       const btn = document.createElement('button');
       btn.className = 'mp-item';
       btn.dataset.id = m.id;
@@ -2011,8 +2013,9 @@ async function initModels() {
       btn.addEventListener('click', () => loadServerModel(m));
       modelList.appendChild(btn);
     }
-    const def = (data.models || []).find(m => m.id === 'white') || (data.models || [])[0];
+    const def = models.find(m => m.id === 'white') || models[0];
     if (def) loadServerModel(def);
+    else if (models.length === 0) appendLine({ t: 'manifest.json 中无模型', c: 'warn' });
   } catch (e) {
     console.error(e);
     appendLine({ t: '模型清单加载失败: ' + e.message, c: 'err' });
