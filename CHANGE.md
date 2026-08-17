@@ -775,3 +775,50 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## 🐛 2026-08-18 · 修复：PHYS 折叠卡片真正收缩（display:none 替代 max-height 动画）
+
+> 用户反馈："PHYS 的缩小卡片真的修不了吗"。
+> 根因终于找到：**折叠动画（max-height:0 + opacity:0 + overflow:hidden）让隐藏的 pp-body
+> 仍在文档流中，参与父元素 shrink-to-fit/fit-content 的 max-content 宽度计算**——
+> 风向罗盘等宽行把折叠卡片撑到 ~200px，`width: auto` 也无法收缩。
+
+### 根因（为何"修不了"）
+
+| 尝试 | 结果 | 原因 |
+|------|------|------|
+| `width: fit-content` | 更宽 ❌ | fit-content = max-content，包含隐藏 body 内容宽 |
+| `width: auto`（绝对定位） | 仍宽 ❌ | shrink-to-fit 同样读 max-content，隐藏 body 仍参与 |
+| `display: none` 折叠 ✅ | 收缩正确 | 完全移出文档流，宽度只由头部决定 |
+
+### 修复
+
+- **三卡折叠统一为 `display: none`**（HUD/PHYS/LOG）——启明版原本就是 display:none，
+  北辰为"展开动画"改用 max-height 过渡，反而埋下此 bug
+- 删除全部 max-height/opacity/padding 折叠过渡残留（`max-height: 0` 零残留）
+- PHYS 折叠宽度 = 头部内容宽（MODELS 按钮+tune+PHYS+箭头 ≈179px）
+- HUD 折叠宽度 = 头部内容宽（≈91px）；`min-width: 0` 防 172px 常驻顶住
+- 验证：320~414px 视口折叠态 HUD/PHYS 全部不重叠
+
+### 保留
+
+- 展开/折叠箭头 CSS rotate 动画（与宽度无关）
+- MODELS 打开 md-pop-in 弹出动画（225ms 减速）
+- PHYS 只上下滚动（overflow-x: hidden）
+- 点空白收缩 / 点交互区不收缩逻辑
+
+### 验证
+
+- CSS 平衡 181/181、JS 语法通过 ✅
+- `max-height: 0` 与 `transition: max-height` 零残留 ✅
+- 三卡折叠 display:none 断言通过 ✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
