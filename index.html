@@ -891,6 +891,18 @@ renderer.setSize(w, h);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 stage.appendChild(renderer.domElement);
 
+/* 修复：WebGL context lost/restore 处理 */
+let animRunning = true;
+renderer.domElement.addEventListener('webglcontextlost', e => {
+  e.preventDefault();   /* 阻止浏览器默认行为（立即恢复 context） */
+  animRunning = false;
+  appendLine({ t: '[ 渲染 ] WebGL 上下文丢失，已暂停渲染', c: 'warn' });
+});
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  animRunning = true;
+  appendLine({ t: '[ 渲染 ] WebGL 上下文已恢复', c: 'ok' });
+});
+
 /* ---- 光照：白模需要充足光源 ---- */
 scene.add(new THREE.AmbientLight(0xffffff, 1.0));
 const key = new THREE.DirectionalLight(0xffffff, 1.8);
@@ -1876,7 +1888,10 @@ function doImport() {
     const tasks = [];
     if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionIsCam = r.isCam; p.motionClip = r.clip; p.motionVmd = r.vmd; }));
     if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { p.camIsCam = r.isCam; p.camClip = r.clip; p.camVmd = r.vmd; }));
-    if (p.music)  a.bgm = URL.createObjectURL(p.music);
+    if (p.music) {
+      if (a.bgm && a.bgm.startsWith('blob:')) URL.revokeObjectURL(a.bgm);   /* 修复：释放旧 blob URL */
+      a.bgm = URL.createObjectURL(p.music);
+    }
     Promise.all(tasks).then(() => {
       /* 类型校验（与导入分支一致） */
       if (p.motion && p.motionIsCam) { appendLine({ t: '编辑：所选"动作"文件是相机动作，请放入镜头槽', c: 'err' }); return; }
@@ -2260,6 +2275,7 @@ let lastFrameT = 0;  /* 帧率上限：上次渲染帧时间戳（0=首帧必渲
 
 function animate() {
   requestAnimationFrame(animate);
+  if (!animRunning) return;   /* 修复：WebGL context lost 时跳过渲染和物理 */
   /* 帧率上限（physCfg.fpsCap，0=不限）：不足间隔的 rAF 帧直接跳过——不渲染、不更新物理。
    * 跳帧后 clock.getDelta 返回跨帧大值，由下方 dt 限幅 1/30 兜底（物理不炸） */
   const _now = performance.now();
