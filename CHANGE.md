@@ -919,3 +919,36 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## 🐛 2026-08-18 · 修复：初始折叠宽度未锁定（PHYS 显示全宽 / HUD 偏宽）
+
+> 用户反馈：① PHYS 默认宽度错误——必须"展开再收缩一次"宽度才正确；
+> ② 详情（HUD）收缩卡片宽度偏大。
+> 根因：**同一个**——HTML 中默认折叠的卡片（`#hud`/`#phys-panel` 带 `class="min"`）
+> 初始宽度从未经过 JS 锁定：PHYS 显示 CSS `width:252px`、HUD 显示 `min-width:172px`，
+> 而 `setCardCollapsed` 只在交互时调用。展开再收缩时 JS 才把宽度锁到头部内容宽。
+
+### 修复
+
+1. **提取 `headContentWidth(card)`** 独立函数——计算头部内容自然宽
+   （padding + 子元素 getBoundingClientRect 求和 + gap）
+2. **新增 `initCollapsedWidths()`**——初始化时对 `#hud.min, #phys-panel.min, #log.min`
+   立即锁定宽度为头部内容宽；用 `transition:none` + 强制 reflow 临时禁用过渡
+   （避免页面加载即播宽度动画）
+3. **初始化调用**：`initModels/initActions` 后调用；`document.fonts.ready` 后再测一次
+   （Noto Sans SC 异步字体，fallback→真字体后宽度可能变化）
+
+### 验证
+
+- JS 语法通过、CSS 179/179 平衡、三卡折叠规则一致 ✅
+- initCollapsedWidths 调用链完整（初始 + 字体就绪双保险）✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*

@@ -898,28 +898,47 @@ function raiseCardTop(el) {
   });
 }
 
+/* 头部内容自然宽（折叠目标宽度）：
+ * = padding + 各子元素实际宽 + gap。
+ * 不能用 head.offsetWidth/scrollWidth：flex 容器会撑满父宽（252px/172px）。
+ * 子元素（title/toggle/MODELS）都是 inline-flex/行内，getBoundingClientRect 返回内容实际宽 */
+function headContentWidth(card) {
+  const head = card.querySelector('.pp-head, .hud-head, .log-head');
+  if (!head) return null;
+  const cs = window.getComputedStyle(head);
+  let w = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const children = Array.from(head.children);
+  for (const ch of children) w += ch.getBoundingClientRect().width;
+  w += (children.length > 1 ? children.length - 1 : 0) * parseFloat(cs.gap || 0) || 0;
+  return Math.ceil(w);
+}
+
 /* 折叠/展开统一入口（2026-08-18）：折叠时把卡片宽度锁定为头部内容宽（触发 width 过渡动画），
  * 展开时恢复展开宽度。宽度锁定让 body 留在文档流做 max-height/opacity 动画（文字淡入连贯），
  * 同时不被隐藏 body 内容撑宽（见 CHANGE.md 折叠动画演进记录） */
 function setCardCollapsed(card, min) {
   if (min) {
-    const head = card.querySelector('.pp-head, .hud-head, .log-head');
-    if (head) {
-      /* 头部内容自然宽 = padding + 各子元素实际宽 + gap。
-       * 不能用 head.offsetWidth/scrollWidth：flex 容器会撑满父宽（252px）。
-       * 子元素（title/toggle/MODELS）都是 inline-flex/行内，getBoundingClientRect 返回内容实际宽 */
-      const cs = window.getComputedStyle(head);
-      let w = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-      const children = Array.from(head.children);
-      for (const ch of children) w += ch.getBoundingClientRect().width;
-      w += (children.length > 1 ? children.length - 1 : 0) * parseFloat(cs.gap || 0) || 0;
-      card.style.width = Math.ceil(w) + 'px';   /* 锁定为头部内容宽，触发 width 过渡 */
-    }
+    const w = headContentWidth(card);
+    if (w) card.style.width = w + 'px';   /* 锁定为头部内容宽，触发 width 过渡 */
     card.classList.add('min');
   } else {
     card.classList.remove('min');
     card.style.width = '';   /* 恢复 CSS 定义的展开宽度，触发 width 过渡 */
   }
+}
+
+/* 初始化（2026-08-18）：HTML 中默认折叠的卡片（#hud/#phys-panel 带 class="min"）初始宽度未锁定，
+ * 会显示 CSS 全宽（PHYS 252px / HUD 172px）——展开再收缩才正确。初始化时立即锁定为头部内容宽，
+ * 用 transition:none 临时禁用过渡（避免页面加载即播宽度动画） */
+function initCollapsedWidths() {
+  document.querySelectorAll('#hud.min, #phys-panel.min, #log.min').forEach(card => {
+    const w = headContentWidth(card);
+    if (!w) return;
+    card.style.transition = 'none';
+    card.style.width = w + 'px';
+    void card.offsetWidth;   /* 强制 reflow，让宽度立即应用（不触发过渡） */
+    card.style.transition = '';
+  });
 }
 
 /* 模型加载器（LoadingManager 统一纹理路径，反斜杠转正斜杠） */
@@ -2072,6 +2091,11 @@ controls.update();
  * onModelLoaded 引用 controls；移到 controls 之后消除顺序隐患。 */
 initModels();
 initActions();
+initCollapsedWidths();   /* 2026-08-18：初始折叠卡片宽度锁定（PHYS/HUD 默认 .min——否则显示 CSS 全宽，见函数注释） */
+/* 字体异步加载（Noto Sans SC CDN）——字体就绪后宽度可能变化（fallback→真字体），重新锁定 */
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => initCollapsedWidths());
+}
 
 /* PHYS-5b：启动时恢复上次保存的参数（localStorage） */
 try {
