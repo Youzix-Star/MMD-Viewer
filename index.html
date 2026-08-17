@@ -800,8 +800,10 @@ function renderLogModal() {
   logModalList.scrollTop = logModalList.scrollHeight;
   logCount.textContent = '(' + logArchive.length + ' 条)';
 }
+let logModalCloseTimer = null;
 function openLogModal() {
-  logModal.classList.remove('hidden');
+  clearTimeout(logModalCloseTimer);   /* 修复P2：取消挂起的关闭定时器 */
+  logModal.classList.remove('hidden', 'closing');
   renderLogModal();
 }
 function closeLogModal() {
@@ -809,7 +811,7 @@ function closeLogModal() {
    * 直接加 .hidden 则无关闭动画（用户反馈"只有打开动画，没有关闭动画"） */
   if (logModal.classList.contains('hidden') || logModal.classList.contains('closing')) return;
   logModal.classList.add('closing');
-  setTimeout(() => {
+  logModalCloseTimer = setTimeout(() => {
     logModal.classList.add('hidden');
     logModal.classList.remove('closing');
   }, 200);   /* 195ms 动画 + 余量 */
@@ -1401,16 +1403,21 @@ let currentId = null;
 function showModelPanel() {
   const mp = document.getElementById('model-panel');
   if (mp.classList.contains('show')) hideModelPanel();   /* 再点 = 关闭（带动画） */
-  else mp.classList.add('show');
+  else {
+    clearTimeout(modelPanelCloseTimer);   /* 修复P2：取消挂起的关闭定时器 */
+    mp.classList.remove('closing');
+    mp.classList.add('show');
+  }
 }
 
 /* 关闭模型面板（2026-08-18）：先播 195ms 加速离开动画，动画结束再移除 .show（display:none）。
  * 直接移除 .show 则无关闭动画（用户反馈"只有打开动画，没有关闭动画"） */
+let modelPanelCloseTimer = null;
 function hideModelPanel() {
   const mp = document.getElementById('model-panel');
   if (!mp.classList.contains('show') || mp.classList.contains('closing')) return;
   mp.classList.add('closing');
-  setTimeout(() => {
+  modelPanelCloseTimer = setTimeout(() => {
     mp.classList.remove('show', 'closing');
   }, 200);   /* 195ms 动画 + 余量 */
 }
@@ -1801,6 +1808,7 @@ let importPicked = { motion: null, cam: null, music: null, motionClip: null, cam
 let importMode = 'import';   /* 'import' 新导入 | 'edit' 编辑已有动作（加音乐/镜头） */
 let editTarget = null;       /* 编辑模式的目标动作对象 */
 
+let importModalCloseTimer = null;
 function openImportModal(target) {
   importMode = target ? 'edit' : 'import';
   editTarget = target || null;
@@ -1821,14 +1829,15 @@ function openImportModal(target) {
   document.getElementById('import-cam-name').classList.remove('chosen');
   document.getElementById('import-music-name').classList.toggle('chosen', importMode === 'edit' && !!target.bgm);
   document.getElementById('import-ok').textContent = importMode === 'edit' ? '应用并播放' : '导入并播放';
-  document.getElementById('import-modal').classList.remove('hidden');
+  clearTimeout(importModalCloseTimer);   /* 修复P2：取消挂起的关闭定时器 */
+  document.getElementById('import-modal').classList.remove('hidden', 'closing');
 }
 function closeImportModal() {
   /* 2026-08-18：关闭动画（同 log-modal）——播 195ms 加速离开再隐藏 */
   const im = document.getElementById('import-modal');
   if (im.classList.contains('hidden') || im.classList.contains('closing')) return;
   im.classList.add('closing');
-  setTimeout(() => {
+  importModalCloseTimer = setTimeout(() => {
     im.classList.add('hidden');
     im.classList.remove('closing');
   }, 200);
