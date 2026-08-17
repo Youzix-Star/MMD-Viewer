@@ -40,7 +40,7 @@ mesh.geometry.userData.MMD = { bones, iks, grants, rigidBodies, constraints }
 
 ## 3. 参数调校系统（本项目的核心价值）
 
-所有参数在 PHYS 面板可调，`physCfg` 单对象 + `localStorage` 持久化（`savePhysCfg()` 18 个调用点）+ "恢复默认"（`PHYS_DEFAULTS`，2026-08-15 修复：该按钮此前从未绑定监听）。
+所有参数在 PHYS 面板可调，`physCfg` 单对象 + `localStorage` 持久化（`savePhysCfg()` 19 个调用点）+ "恢复默认"（`PHYS_DEFAULTS`，2026-08-15 修复：该按钮此前从未绑定监听）。
 
 | 参数 | 默认 | 作用 |
 |---|---|---|

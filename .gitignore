@@ -15,6 +15,6 @@ models/idol/
 Thumbs.db
 
 # 本地开发脚本（不入库——工具类，非项目代码，见 CHANGE.md 天衡修复记录）
-.nocache.py
+*.py
 *.pyc
 __pycache__/
