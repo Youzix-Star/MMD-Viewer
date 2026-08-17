@@ -1267,7 +1267,9 @@ const ACTIONS = [
   { id: 'iris',  name: 'IRIS OUT',  file: 'models/IRIS_OUT/IRIS OUT.vmd',           bgm: 'models/IRIS_OUT/IRIS OUT.wav' }
 ];
 let actionHelper = null;        /* MMDAnimationHelper（sync:false = 用本项目传入的 dt） */
-const actionClips = {};         /* 已转换的 AnimationClip 缓存 { id: clip } */
+const actionClips = {};         /* clip 缓存——key 含模型 id：clip 的 position 轨道 = build 时骨骼
+                                   basePosition + 帧值，是"模型特定"的，跨模型复用会错位（2026-08-16 修复） */
+function aKey(a) { return (currentId || 'x') + '|' + a.id; }
 let currentAction = null;       /* 当前动作 id（null=无） */
 let camAnimated = false;        /* 相机曾被镜头动作驱动（2026-08-16：切无镜头动作时需先恢复初始视角） */
 let actionSpeed = 1;            /* 动作播放倍速（0.5/1/1.5/2，进度条控制） */
@@ -1381,13 +1383,13 @@ function getPlayAction() {
   const mixer = getPlayMixer();
   const a = ACTIONS.find(x => x.id === currentAction);
   if (!mixer || !a) return null;
-  const clip = a.motionClip || actionClips[a.id];
+  const clip = a.motionClip || actionClips[aKey(a)];
   return clip ? mixer.clipAction(clip) : null;
 }
 function getPlayDur() {
   const a = ACTIONS.find(x => x.id === currentAction);
   if (!a) return 0;
-  return (a.motionClip || actionClips[a.id] || { duration: 0 }).duration || 0;
+  return (a.motionClip || actionClips[aKey(a)] || { duration: 0 }).duration || 0;
 }
 function updatePlayCtl() {
   const ctl = document.getElementById('play-ctl');
@@ -1522,14 +1524,23 @@ function playAction(a, preClip) {
     appendLine({ t: '动作：' + a.name + ' 播放中（一次；再点停止；播放期间待机摇摆暂停）', c: 'ok' });
     updateActionUI();
   };
-  if (a.imported && (a.motionClip || a.camClip)) { doPlay(); return; }   /* 导入组合（clip 已在弹窗生成） */
-  if (preClip) { actionClips[a.id] = preClip; doPlay(preClip); return; }   /* 直接播放（clip 已生成） */
-  if (actionClips[a.id]) { doPlay(actionClips[a.id]); return; }
+  if (a.imported && (a.motionClip || a.camClip)) {
+    /* 导入组合：clip 是导入时 build 的（绑定当时模型）——切模型后须用保存的 vmd 重建（2026-08-16） */
+    const mid = currentId || 'x';
+    if (a.builtModelId !== mid) {
+      if (a.vmdMotion) a.motionClip = loader.animationBuilder.build(a.vmdMotion, mmdMesh);
+      if (a.vmdCam) a.camClip = loader.animationBuilder.buildCameraAnimation(a.vmdCam);
+      a.builtModelId = mid;
+    }
+    doPlay(); return;
+  }
+  if (preClip) { actionClips[aKey(a)] = preClip; doPlay(preClip); return; }   /* 直接播放（clip 已生成） */
+  if (actionClips[aKey(a)]) { doPlay(actionClips[aKey(a)]); return; }
   appendLine({ t: '动作：加载 ' + a.name + ' …', c: 'dim' });
   /* 修复(2026-08-15)：r160 MMDAnimationHelper 直接吃 AnimationClip，不吃 VMD 原始数据——
    * 用 loadAnimation 按目标类型转换（模型→build(vmd,mesh)，相机→buildCameraAnimation(vmd)） */
   loader.loadAnimation(a.file, a.camera ? camera : mmdMesh, clip => {
-    actionClips[a.id] = clip;
+    actionClips[aKey(a)] = clip;
     doPlay(clip);
   }, undefined, err => {
     console.error(err);
@@ -1621,7 +1632,7 @@ function vmdFileToClip(file, mesh) {
     const vmd = loader.parser.parseVmd(ab, true);
     const isCam = vmd.cameras && vmd.cameras.length > 0 && (!vmd.motions || vmd.motions.length === 0);
     const clip = isCam ? loader.animationBuilder.buildCameraAnimation(vmd) : loader.animationBuilder.build(vmd, mesh);
-    return { clip: clip, isCam: isCam };
+    return { clip: clip, isCam: isCam, vmd: vmd };   /* 2026-08-16：保留 vmd 供切模型后重建 clip */
   });
 }
 
@@ -1634,15 +1645,16 @@ function doImport() {
     if (!p.motion && !p.cam && !p.music) { appendLine({ t: '编辑：未选择任何修改项', c: 'warn' }); return; }
     appendLine({ t: '动作：更新 ' + a.name + ' …', c: 'dim' });
     const tasks = [];
-    if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionIsCam = r.isCam; p.motionClip = r.clip; }));
-    if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { p.camIsCam = r.isCam; p.camClip = r.clip; }));
+    if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionIsCam = r.isCam; p.motionClip = r.clip; p.motionVmd = r.vmd; }));
+    if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { p.camIsCam = r.isCam; p.camClip = r.clip; p.camVmd = r.vmd; }));
     if (p.music)  a.bgm = URL.createObjectURL(p.music);
     Promise.all(tasks).then(() => {
       /* 类型校验（与导入分支一致） */
       if (p.motion && p.motionIsCam) { appendLine({ t: '编辑：所选"动作"文件是相机动作，请放入镜头槽', c: 'err' }); return; }
       if (p.cam && !p.camIsCam) { appendLine({ t: '编辑：所选"镜头"文件是骨骼动作，请放入动作槽', c: 'err' }); return; }
-      if (p.motion) { a.motionClip = p.motionClip; a.file = null; }
-      if (p.cam) a.camClip = p.camClip;
+      if (p.motion) { a.motionClip = p.motionClip; a.vmdMotion = p.motionVmd; a.file = null; }
+      if (p.cam) { a.camClip = p.camClip; a.vmdCam = p.camVmd; }
+      a.builtModelId = currentId || 'x';   /* 2026-08-16：编辑后标记 clip 属于当前模型 */
       closeImportModal();
       const what = [p.motion ? '动作' : '', p.cam ? '镜头' : '', p.music ? '音乐' : ''].filter(Boolean).join('/');
       appendLine({ t: '动作：' + a.name + ' 已更新（' + what + '）', c: 'ok' });
@@ -1656,8 +1668,8 @@ function doImport() {
   if (!p.motion && !p.cam) { appendLine({ t: '导入：请至少选择一个动作或镜头文件', c: 'warn' }); return; }
   appendLine({ t: '动作：解析导入文件 …', c: 'dim' });
   const tasks = [];
-  if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionClip = r.clip; p.motionIsCam = r.isCam; }));
-  if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { p.camClip = r.clip; p.camIsCam = r.isCam; }));
+  if (p.motion) tasks.push(vmdFileToClip(p.motion, mmdMesh).then(r => { p.motionClip = r.clip; p.motionIsCam = r.isCam; p.motionVmd = r.vmd; }));
+  if (p.cam)    tasks.push(vmdFileToClip(p.cam, mmdMesh).then(r => { p.camClip = r.clip; p.camIsCam = r.isCam; p.camVmd = r.vmd; }));
   Promise.all(tasks).then(() => {
     /* 类型校验（发布前审查 P2）：动作槽必须是骨骼动作、镜头槽必须是相机动作，防止串味 */
     if (p.motion && p.motionIsCam) { appendLine({ t: '导入：所选"动作"文件是相机动作，请放入镜头槽', c: 'err' }); return; }
@@ -1669,7 +1681,10 @@ function doImport() {
       id: id, name: base, file: null, imported: true,
       motionClip: p.motionClip || null,
       camClip: p.camClip || null,
-      bgm: p.music ? URL.createObjectURL(p.music) : null
+      bgm: p.music ? URL.createObjectURL(p.music) : null,
+      vmdMotion: p.motionVmd || null,   /* 2026-08-16：保留 vmd，切模型后重建 clip */
+      vmdCam: p.camVmd || null,
+      builtModelId: currentId || 'x'
     };
     ACTIONS.push(a);
     initActions();
