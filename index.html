@@ -1993,13 +1993,14 @@ document.addEventListener('click', e => {
   if (modelPanel.classList.contains('show') && !modelPanel.contains(e.target) && !e.target.closest('.pp-models')) {
     hideModelPanel();
   }
-  /* 修复(2026-08-18)：PHYS 收缩逻辑——点击"空白"（卡片内部非交互区或卡片外）收缩；
-   * 点击可交互元素（按钮/开关/滑块/罗盘/头部折叠钮/MODELS）不收缩。
-   * 原逻辑是"点卡片外才收缩"，导致点内部空白无反应；用户要求：空白即收缩，交互区不收缩 */
+  /* 修复(2026-08-18)：PHYS 收缩逻辑——**只有点击模型预览器（#stage 内的 3D 画布）才收缩**；
+   * 点击其他任何区域（HUD/日志卡/其他按钮/空白）都不收缩。
+   * 演进：① 原"点卡片外才收缩"→点卡片内空白无反应；② 改"非交互区都收缩"→点 HUD/日志也误收缩；
+   * ③ 本轮（用户期望）：只有点 3D 预览器才收缩——点画布 = "离开 PHYS 去操作模型"的明确意图 */
   const physCard = document.getElementById('phys-panel');
   if (physCard && !physCard.classList.contains('min')) {
-    const interactive = e.target.closest('.pp-head, .pp-models, .pp-reset, .switch, .pp-range, .wind-dial, #model-panel, button, input, label');
-    if (!interactive) {   /* 非交互区：卡片内空白 / 卡片外，均收缩 */
+    const stageCanvas = document.querySelector('#stage canvas');
+    if (stageCanvas && stageCanvas.contains(e.target)) {
       setCardCollapsed(physCard, true);
       physCard.style.zIndex = '20';   /* 收起回落基础层级，避免压住 HUD */
       /* 修复(2026-08-18)：不手动换图标，CSS rotate 接管方向 */
