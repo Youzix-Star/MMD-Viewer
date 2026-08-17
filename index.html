@@ -512,7 +512,9 @@
     box-shadow: var(--elev-6); padding: 8px 12px 10px; z-index: 15;
     display: flex; flex-direction: column; gap: 6px;
     font-size: 11px; color: var(--dim);
-    transition: bottom 300ms var(--ease-std);   /* 日志展开/折叠时平滑上移/回落（300ms 对齐 log 动画，防追尾抖动） */
+    /* 修复(2026-08-18)：去掉 transition:bottom——updatePlayCtl 每帧更新 bottom，
+     * 加 300ms 过渡 = 每帧都在追、永远滞后 300ms（跟不上日志展开/缩放）。
+     * 日志动画本身连续，bottom 直接跟随即平滑同步 */
   }
   #play-ctl.hidden { display: none; }
   .pc-main { display: flex; align-items: center; gap: 10px; }
@@ -725,6 +727,7 @@
     <!-- 播放控制条（动作播放时显示：进度拖动/倍速/快进/复位，2026-08-16） -->
     <div id="play-ctl" class="hidden">
       <div class="pc-main">
+        <button class="pc-btn pc-icon" id="pc-pause" title="暂停/继续"><i class="material-icons">pause</i></button>
         <input type="range" id="pc-progress" min="0" max="1000" step="1" value="0">
         <span id="pc-time">0:00 / 0:00</span>
       </div>
@@ -1428,6 +1431,7 @@ let currentAction = null;       /* 当前动作 id（null=无） */
 let camAnimated = false;        /* 相机曾被镜头动作驱动（2026-08-16：切无镜头动作时需先恢复初始视角） */
 let actionSpeed = 1;            /* 动作播放倍速（0.5/1/1.5/2，进度条控制） */
 let pcSeeking = false;          /* 进度条拖动中（避免被每帧刷新覆盖） */
+let actionPaused = false;       /* 播放暂停（2026-08-18：控制条暂停按钮；北辰旧实现重加） */
 let bgmAudio = null;            /* BGM（懒加载；WAV 不入库，缺失时降级） */
 let bgmWarned = false;
 
@@ -1467,8 +1471,35 @@ function ensureActionHelper() {
 }
 
 /* 停止动作：移除 mesh/相机动画，恢复 controls（镜头动作时被禁用） */
+/* 暂停/继续（2026-08-18 加回，参照北辰旧实现）：同时暂停 mesh/镜头所有动画 Action + BGM */
+function setActionPaused(paused) {
+  actionPaused = paused;
+  if (!actionHelper || !currentAction) return;
+  const a = ACTIONS.find(x => x.id === currentAction);
+  if (!a) return;
+  const meshObj = actionHelper.objects.get(mmdMesh);
+  const camObj = actionHelper.objects.get(camera);
+  const meshClip = a.motionClip || (!a.camera ? actionClips[aKey(a)] : null);
+  const camClip = a.camClip || (a.camera ? actionClips[aKey(a)] : null);
+  if (meshClip && meshObj && meshObj.mixer) {
+    const act = meshObj.mixer.clipAction(meshClip);
+    if (act) act.paused = paused;
+  }
+  if (camClip && camObj && camObj.mixer) {
+    const act = camObj.mixer.clipAction(camClip);
+    if (act) act.paused = paused;
+  }
+  if (bgmAudio && a && a.bgm) {   /* 仅当前动作带 BGM 时联动；避免无 BGM 动作误播上一首残留 Audio */
+    if (paused) bgmAudio.pause();
+    else bgmAudio.play().catch(() => {});
+  }
+  const icon = document.querySelector('#pc-pause i');
+  if (icon) icon.textContent = paused ? 'play_arrow' : 'pause';
+}
+
 function stopAction() {
   if (!actionHelper) { currentAction = null; updateActionUI(); return; }
+  actionPaused = false;   /* 2026-08-18：停止后复位暂停状态 */
   /* 修复(2026-08-15)：仅移除 helper 实际绑定过的对象——切模型后新模型未 add 过，
    * 无条件 remove 会抛 "SkinnedMesh has not been added yet" */
   if (mmdMesh && actionHelper.meshes.indexOf(mmdMesh) >= 0) actionHelper.remove(mmdMesh);
@@ -1586,13 +1617,24 @@ document.getElementById('pc-progress').addEventListener('input', () => {
   pcSeeking = true;
   const action = getPlayAction(), dur = getPlayDur();
   const v = document.getElementById('pc-progress').value / 1000 * dur;
-  if (action && dur > 0) { action.time = v; action.play(); }   /* 修复：seek 设 action.time */
-  /* 修复(2026-08-16)：进度条同步 BGM——动画与音乐一起 seek（音乐短于动画时 clamp） */
+  if (action && dur > 0) {
+    action.time = v;
+    if (!actionPaused) action.play();   /* 2026-08-18：暂停中拖动 seek 不恢复播放 */
+  }
+  /* 修复(2026-08-16)：进度条同步 BGM——动画与音乐一起 seek（音乐短于动画时 clamp；
+   * 2026-08-18：暂停中也同步，恢复后不错位） */
   if (bgmAudio && !bgmAudio.paused && dur > 0) {
     bgmAudio.currentTime = Math.min(v, bgmAudio.duration || v);
   }
 });
 document.getElementById('pc-progress').addEventListener('change', () => { pcSeeking = false; });
+
+/* 暂停/继续按钮（2026-08-18 加回）：暂停 mesh/镜头动画 + BGM，图标切换 */
+document.getElementById('pc-pause').addEventListener('click', () => {
+  setActionPaused(!actionPaused);
+  updateActionUI();
+  appendLine({ t: actionPaused ? '动作：已暂停' : '动作：继续播放', c: 'dim' });
+});
 
 /* 倍速按钮（同步 BGM：Audio.playbackRate 变速） */
 document.querySelectorAll('.pc-speed').forEach(b => b.addEventListener('click', () => {
@@ -1602,10 +1644,13 @@ document.querySelectorAll('.pc-speed').forEach(b => b.addEventListener('click', 
   appendLine({ t: '播放速度：' + actionSpeed + '×（音乐同步变速）', c: 'dim' });
 }));
 
-/* 快进 10 秒（同步 BGM） */
+/* 快进 10 秒（同步 BGM；2026-08-18：暂停中快进不恢复播放） */
 document.getElementById('pc-fwd').addEventListener('click', () => {
   const action = getPlayAction(), dur = getPlayDur();
-  if (action && dur > 0) action.time = Math.min(action.time + 10, dur);   /* 修复：操作 action.time */
+  if (action && dur > 0) {
+    action.time = Math.min(action.time + 10, dur);   /* 修复：操作 action.time */
+    if (!actionPaused) action.play();
+  }
   if (bgmAudio && !bgmAudio.paused) bgmAudio.currentTime = Math.min((bgmAudio.currentTime || 0) + 10, dur || 1e9);
 });
 function playAction(a, preClip) {
@@ -1672,6 +1717,9 @@ function playAction(a, preClip) {
     }
     currentAction = a.id;
     if (a.bgm) playBGM(a.bgm);
+    actionPaused = false;   /* 2026-08-18：新播放不继承暂停，并复位按钮图标 */
+    const pauseIcon = document.querySelector('#pc-pause i');
+    if (pauseIcon) pauseIcon.textContent = 'pause';
     showPlayCtl();   /* 显示播放控制条（进度/倍速/快进） */
     appendLine({ t: '动作：' + a.name + ' 播放中（一次；再点停止；播放期间待机摇摆暂停）', c: 'ok' });
     updateActionUI();
@@ -1735,7 +1783,7 @@ function updateActionUI() {
     } else if (icon) { icon.remove(); }
   });
   const note = document.getElementById('action-note');
-  if (note) note.textContent = currentAction ? '播放中' : '';
+  if (note) note.textContent = currentAction ? (actionPaused ? '已暂停' : '播放中') : '';
 }
 
 /* ============================================================

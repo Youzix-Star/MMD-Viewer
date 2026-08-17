@@ -1031,3 +1031,42 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## 🎛 2026-08-18 · 播放控制条：跟随日志同步 + 暂停按钮
+
+> 用户反馈：① 播放控制条跟不上日志卡片的展开/缩放；② 增加暂停按钮。
+
+### 1. 控制条跟不上日志展开/缩放
+
+- **根因**：`#play-ctl` 有 `transition: bottom 300ms`，但 `updatePlayCtl` **每帧**设置
+  `bottom = log.offsetHeight + 24`——每帧一个新值 + 300ms 过渡 = 永远在追、永远滞后 300ms
+- **修复**：去掉 `transition: bottom`——日志动画本身连续（max-height 逐帧变化），
+  bottom 直接跟随即平滑同步，不再滞后
+
+### 2. 暂停按钮（北辰旧实现重加，2026-08-18 用户要求）
+
+- HTML：`#play-ctl .pc-main` 加 `#pc-pause` 按钮（pause 图标）
+- JS：`setActionPaused(paused)`——同时暂停 mesh/镜头动画 Action（`act.paused`）+ BGM
+  （pause/play）；按钮图标 pause ↔ play_arrow 切换
+- 联动：
+  - `stopAction` 复位 `actionPaused = false`
+  - `playAction` 新播放复位暂停 + 图标
+  - seek/快进在暂停中**不恢复播放**（`if (!actionPaused) action.play()`）
+  - 动作项 note 显示"已暂停"/"播放中"
+- 参考：北辰 e4df42d 的暂停实现（reflog 可查）；BGM 联动只对当前动作带 BGM 时生效
+
+### 验证
+
+- JS 语法通过、CSS 190/190 平衡 ✅
+- transition:bottom 已移除 ✅
+- 暂停按钮/状态/联动完整（9 处引用）✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
