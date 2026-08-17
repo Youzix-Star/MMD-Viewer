@@ -108,13 +108,17 @@
   #hud .hud-body {
     padding: 8px 14px;   /* 学 PHYS pp-body：内容区自带 padding */
     line-height: 1.9;
-    /* 折叠动画已移除（display:none 折叠，同 PHYS）——max-height 过渡残留会让隐藏内容参与父宽度计算 */
+    transition: max-height 300ms var(--ease-std), opacity 300ms var(--ease-std), padding 300ms var(--ease-std);
+    max-height: 300px; opacity: 1;
   }
   #hud .hud-row { display: flex; justify-content: space-between; gap: 18px; }
   #hud b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
   #hud.min { width: fit-content; min-width: 0; }   /* 折叠：宽度收缩到头部内容（min-width 归零，否则 172px 常驻顶住收缩；学 PHYS width:auto；不走动画） */
-  /* 修复(2026-08-18)：折叠 body 用 display:none（同 PHYS）——max-height:0 残留会让隐藏内容参与宽度计算 */
-  #hud.min .hud-body { display: none; }   /* 折叠只收高度 */
+  /* 折叠(2026-08-18)：同 PHYS——body absolute 移出文档流（不参与宽度计算）+ 保留 max-height/opacity 动画 */
+  #hud.min .hud-body {
+    position: absolute; left: 0; right: 0; top: 100%;
+    max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden;
+  }
   /* 折叠箭头：统一用 expand_more 基图标，CSS 旋转表达方向（修复(2026-08-18)：JS innerHTML 换图标与 rotate 叠加导致方向反/动画失效） */
   #hud .hud-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #hud.min .hud-toggle .material-icons { transform: rotate(0deg); }
@@ -303,17 +307,23 @@
   }
   #model-panel .mp-edit:hover { background: var(--surface2); color: var(--primary); }
   #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; max-height: 68vh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
-    /* 修复(2026-08-18)：加 overflow-x: hidden——flex 列内容超宽时原本可横向滚动（"四周都能滑"），只允许上下滚动
-     * 折叠动画已移除（display:none 折叠，无 max-height 过渡）——过渡残留会让隐藏内容参与父宽度计算 */
+    /* 修复(2026-08-18)：加 overflow-x: hidden——flex 列内容超宽时原本可横向滚动（"四周都能滑"），只允许上下滚动 */
+    transition: max-height 300ms var(--ease-std), opacity 300ms var(--ease-std), padding 300ms var(--ease-std);
+    opacity: 1;
   }
   #phys-panel .pp-body::-webkit-scrollbar { width: 4px; }
   #phys-panel .pp-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
   #phys-panel .pp-row { display: flex; align-items: center; gap: 10px; }
-  /* 修复(2026-08-18)：折叠态必须 display:none——max-height:0 动画残留会让隐藏的 pp-body
-   * 仍在文档流中参与父元素 shrink-to-fit 宽度计算（风向罗盘等宽行把折叠卡片撑到 ~200px）；
-   * display:none 完全移出流，折叠宽度 = 头部内容宽（学启明版 width:auto，用户认可） */
+  /* 折叠(2026-08-18 天衡定案)：body 用 absolute 移出文档流——不参与父元素 shrink-to-fit 宽度计算
+   * （解决"隐藏内容撑宽折叠卡片"，风向罗盘等宽行不再把卡片撑到 ~200px），
+   * 同时保留 max-height/opacity 折叠动画（display:none 无动画，用户要求动画回来）。
+   * top:100% = 定位在头部正下方；折叠时父宽 = 头部内容宽（width:auto 生效） */
   #phys-panel.min { width: auto; }
-  #phys-panel.min .pp-body { display: none; }
+  #phys-panel.min .pp-body {
+    position: absolute; left: 0; right: 0; top: 100%;
+    max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden;
+    z-index: 1;   /* 动画期间叠在卡片上，不遮挡 3D */
+  }
   #phys-panel .pp-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #phys-panel.min .pp-toggle .material-icons { transform: rotate(0deg); }
   #phys-panel:not(.min) .pp-toggle .material-icons { transform: rotate(180deg); }
@@ -346,9 +356,14 @@
   #log .log-toggle .material-icons { font-size: 18px; }
   #log .log-body {
     margin-top: 6px;
-    /* 折叠动画已移除（display:none 折叠，同 PHYS/HUD）——max-height 过渡残留会让隐藏内容参与父宽度计算 */
+    transition: max-height 300ms var(--ease-std), opacity 300ms var(--ease-std), margin 300ms var(--ease-std);
+    max-height: 200px; opacity: 1;
   }
-  #log.min .log-body { display: none; }
+  /* 折叠(2026-08-18)：同 PHYS/HUD——body absolute 移出文档流（不参与宽度计算）+ 保留 max-height/opacity 动画 */
+  #log.min .log-body {
+    position: absolute; left: 0; right: 0; top: 100%;
+    max-height: 0; opacity: 0; margin-top: 0; overflow: hidden;
+  }
   #log .log-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #log.min .log-toggle .material-icons { transform: rotate(0deg); }
   #log:not(.min) .log-toggle .material-icons { transform: rotate(180deg); }

@@ -822,3 +822,47 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## ✨ 2026-08-18 · 恢复折叠动画：absolute 移出流替代 display:none（宽度+动画两全）
+
+> 用户反馈：上一轮修好宽度（display:none 折叠）但**动画没了**。
+> 本轮找到两全方案：折叠时 body 用 **absolute 定位移出文档流**（不参与父宽度计算）
+> + **保留 max-height/opacity/padding 折叠动画**。
+
+### 方案演进
+
+| 方案 | 宽度 | 动画 | 问题 |
+|------|------|------|------|
+| `max-height:0` 折叠（北辰） | ❌ 被隐藏内容撑宽 | ✅ | 隐藏 body 仍在文档流，参与 shrink-to-fit 宽度计算 |
+| `display:none` 折叠（上轮） | ✅ | ❌ | 完全移出流但无动画 |
+| **`position:absolute` 折叠（本轮）** | ✅ | ✅ | absolute 移出流不参与宽度；max-height/opacity 动画保留 |
+
+### 实现
+
+- 三卡（HUD/PHYS/LOG）折叠态 body：
+  ```css
+  #xxx.min .yyy-body {
+    position: absolute; left: 0; right: 0; top: 100%;  /* 移出流，定位在头部正下方 */
+    max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden;
+  }
+  ```
+- `top: 100%` = 头部高度下方——折叠动画期间 body 在头部正下方收缩，视觉自然
+- 展开恢复：position 瞬时回 static（位置本就同处头部下方，无可见跳动）+ max-height 动画平滑展开
+- 保留：箭头旋转动画、MODELS 弹出动画、PHYS 只上下滚动、点空白收缩逻辑
+
+### 验证
+
+- CSS 平衡 181/181、JS 语法通过 ✅
+- 三卡折叠断言：absolute + max-height 0 + opacity 0 ✅
+- 展开态：pp-body max-height 68vh/300px/200px + transition ✅
+- 折叠宽度仍由头部决定（PHYS auto / HUD fit-content+min-width:0）✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
