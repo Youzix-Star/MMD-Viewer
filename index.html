@@ -260,6 +260,11 @@
     from { opacity: 0; transform: translateY(-8px) scale(.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
+  /* 弹窗（对话框）进入动画：MD2 225ms 减速曲线，translateY 轻微上浮 + scale（GPU 属性） */
+  @keyframes md-dialog-in {
+    from { opacity: 0; transform: translateY(16px) scale(.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
   #model-panel .mp-head {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 14px;
@@ -382,6 +387,7 @@
     box-shadow: var(--elev-24);
     display: flex; flex-direction: column; overflow: hidden;
     margin-top: 5vh;   /* 居中基础上再下移一点 */
+    animation: md-dialog-in 225ms var(--ease-decel);   /* 功能(2026-08-18)：打开大日志弹窗动画——225ms 减速进入（北辰版丢失，补回） */
   }
   .log-modal-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -920,10 +926,12 @@ function setCardCollapsed(card, min) {
   if (min) {
     const w = headContentWidth(card);
     if (w) card.style.width = w + 'px';   /* 锁定为头部内容宽，触发 width 过渡 */
+    card.style.minWidth = '0';   /* 修复(2026-08-18)：#hud 的 min-width:172px 常驻会顶住收缩宽度（min-width 优先于 width）——折叠时归零 */
     card.classList.add('min');
   } else {
     card.classList.remove('min');
     card.style.width = '';   /* 恢复 CSS 定义的展开宽度，触发 width 过渡 */
+    card.style.minWidth = '';   /* 恢复 CSS 定义的 min-width（HUD 172px） */
   }
 }
 
@@ -936,6 +944,7 @@ function initCollapsedWidths() {
     if (!w) return;
     card.style.transition = 'none';
     card.style.width = w + 'px';
+    card.style.minWidth = '0';   /* 同 setCardCollapsed：min-width 顶住收缩 */
     void card.offsetWidth;   /* 强制 reflow，让宽度立即应用（不触发过渡） */
     card.style.transition = '';
   });

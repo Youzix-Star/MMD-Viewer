@@ -952,3 +952,41 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## 🐛 2026-08-18 · 修复：HUD 收缩仍偏宽（min-width 顶住）+ 大日志弹窗无动画
+
+> 用户反馈：① 详情（HUD）收缩卡片仍太宽（日志收缩就合适）；
+> ② 打开大日志（log-modal）无动画。
+
+### 1. HUD 收缩仍偏宽——min-width 顶住收缩
+
+- **根因**：`#hud { min-width: 172px }` 常驻 CSS——`initCollapsedWidths`/`setCardCollapsed`
+  把 `style.width` 锁到头部内容宽（≈107px）时，**CSS min-width 优先于 width**，实际宽度被顶回 172px。
+  日志卡无 min-width 所以正常收缩（≈141px），这就是"日志合适、详情太宽"的原因
+- **修复**：折叠时 `card.style.minWidth = '0'`（min-width 归零，width 生效）；
+  展开时 `card.style.minWidth = ''`（恢复 CSS 172px）
+- 验证：HUD 收缩 ≈107px（title 45 + toggle 22 + padding 28 + gap 12），
+  不再被 172px 顶住；展开恢复 172px
+
+### 2. 大日志弹窗无动画
+
+- **根因**：北辰版把 `.log-modal-card` 的进入动画弄丢了（只剩 model-panel 的 md-pop-in）
+- **修复**：补 `animation: md-dialog-in 225ms var(--ease-decel)` + 新增
+  `@keyframes md-dialog-in`（translateY(16px) scale(.98) → 0/1，GPU 属性）；
+  import-modal 复用 `.log-modal-card` 自动获得同款动画
+
+### 验证
+
+- CSS 182/182、JS 语法通过 ✅
+- min-width 折叠归零/展开恢复逻辑确认 ✅
+- md-dialog-in/md-pop-in keyframes 齐全 ✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
