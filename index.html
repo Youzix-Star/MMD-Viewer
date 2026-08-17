@@ -34,7 +34,36 @@
     --elev-2: 0 2px 6px rgba(15,23,42,.08), 0 8px 24px rgba(15,23,42,.08);
     --r-lg: 12px;
     --r-md: 8px;
+    --surface3: #e8f1f9;                  /* 状态层（深色覆盖） */
+    --surface-glass: rgba(255,255,255,.94); /* 卡片半透明底（深色覆盖） */
+    --ease-std: cubic-bezier(.2, 0, 0, 1);  /* 动效曲线 */
   }
+  /* ===== 深色模式（2026-08-16） ===== */
+  [data-theme="dark"] {
+    --bg: #10151d;
+    --surface: #1a222d;
+    --surface2: #232e3b;
+    --surface3: #2e3c4c;
+    --line: #34424f;
+    --text: #e6edf5;
+    --dim: #93a5b9;
+    --primary: #4fc3f7;
+    --primary-strong: #82d4f9;
+    --on-primary: #0a1a24;
+    --amber: #f2b34b;
+    --red: #ef6a6a;
+    --surface-glass: rgba(24, 32, 43, .94);
+    --elev-1: 0 1px 2px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.3);
+    --elev-2: 0 4px 8px rgba(0,0,0,.45), 0 12px 24px rgba(0,0,0,.5);
+    --elev-3: 0 8px 16px rgba(0,0,0,.5), 0 20px 40px rgba(0,0,0,.6);
+  }
+  /* 深色特殊项覆盖（2026-08-16） */
+  [data-theme="dark"] .switch .slider { background: #46566a; }
+  [data-theme="dark"] .pp-range,
+  [data-theme="dark"] #pc-progress { background: linear-gradient(to right, var(--primary) var(--fill,50%), #34424f var(--fill,50%)); }
+  [data-theme="dark"] .wind-dial { background: radial-gradient(circle at 50% 45%, #1c2631, #141b24); }
+  [data-theme="dark"] .mp-item.playing,
+  [data-theme="dark"] .pp-action.playing { background: #2b2417; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
     width: 100%; height: 100%;
@@ -49,7 +78,7 @@
     position: fixed; top: 0; left: 0; right: 0; height: 52px;
     display: flex; align-items: center; gap: 12px;
     padding: 0 16px;
-    background: #ffffff;
+    background: var(--surface);
     border-bottom: 1px solid var(--line);
     z-index: 30;
     user-select: none;
@@ -60,6 +89,12 @@
   /* 历史遗留：长模型名换行被 52px 高 AppBar 裁切——溢出省略 */
   #appbar .ab-title, #appbar .ab-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   #appbar .ab-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+  #btn-theme {
+    width: 30px; height: 30px; border: none; border-radius: 50%; background: transparent;
+    color: var(--dim); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  #btn-theme:active { background: var(--surface2); }
+  #btn-theme .material-icons { font-size: 19px; }
   #appbar .ab-status b { color: var(--text); font-weight: 500; }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
 
@@ -72,7 +107,7 @@
   #hud {
     position: absolute; left: 16px; top: 16px;
     min-width: 172px;
-    background: rgba(255,255,255,.94);
+    background: var(--surface-glass);
     border: 1px solid var(--line);
     border-radius: var(--r-md);
     padding: 8px 14px;
@@ -107,7 +142,7 @@
   .switch .slider::before {
     content: ''; position: absolute; left: 2px; top: 2px;
     width: 14px; height: 14px; border-radius: 50%;
-    background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.28);
+    background: var(--surface); box-shadow: 0 1px 3px rgba(15,23,42,.28);
     transition: transform .15s ease;
   }
   .switch input:checked + .slider { background: var(--primary); }
@@ -126,12 +161,12 @@
   }
   .pp-range::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
-    background: #fff; border: 2px solid var(--primary);
+    background: var(--surface); border: 2px solid var(--primary);
     box-shadow: 0 1px 2px rgba(15,23,42,.18); cursor: pointer;
   }
   .pp-range::-moz-range-thumb {
     width: 14px; height: 14px; border-radius: 50%;
-    background: #fff; border: 2px solid var(--primary); cursor: pointer;
+    background: var(--surface); border: 2px solid var(--primary); cursor: pointer;
   }
   /* 风向圆盘（可视化罗盘：点击/拖动设定风向） */
   .pp-dial-row { align-items: center; }
@@ -163,7 +198,7 @@
   .wind-dial .wd-center {
     position: absolute; left: 50%; top: 50%;
     width: 10px; height: 10px; margin: -5px 0 0 -5px;
-    border-radius: 50%; background: #fff;
+    border-radius: 50%; background: var(--surface);
     border: 2px solid var(--primary); pointer-events: none;
   }
   .wd-info { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
@@ -184,7 +219,7 @@
   #phys-panel {
     position: absolute; right: 16px; top: 16px;
     width: 252px;
-    background: rgba(255,255,255,.94);
+    background: var(--surface-glass);
     border: 1px solid var(--line);
     border-radius: var(--r-md);
     font-size: 12px;
@@ -221,7 +256,7 @@
   #model-panel {
     position: absolute; right: 16px; top: 60px;
     width: min(264px, calc(100vw - 32px));
-    background: #fff;
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--r-md);
     box-shadow: var(--elev-2);
@@ -242,7 +277,7 @@
     padding: 10px 12px;
     border: 1px solid var(--line);
     border-radius: var(--r-md);
-    background: #fff;
+    background: var(--surface);
     color: var(--text);
     font-family: inherit; font-size: 12px;
     text-align: left; line-height: 1.5;
@@ -285,7 +320,7 @@
   #log {
     position: absolute; left: 16px; bottom: 16px;   /* 贴底（复位按钮在右下，不冲突） */
     width: min(300px, calc(100vw - 32px));
-    background: rgba(255,255,255,.94);
+    background: var(--surface-glass);
     border: 1px solid var(--line);
     border-radius: var(--r-md);
     box-shadow: var(--elev-1);
@@ -330,7 +365,7 @@
   #log-modal.hidden { display: none; }
   .log-modal-card {
     width: min(780px, 94vw); height: min(580px, 84vh);
-    background: #fff; border-radius: 16px;
+    background: var(--surface); border-radius: 16px;
     box-shadow: 0 14px 44px rgba(0, 0, 0, .28);
     display: flex; flex-direction: column; overflow: hidden;
     margin-top: 5vh;   /* 居中基础上再下移一点 */
@@ -394,7 +429,7 @@
     width: 36px; height: 36px;   /* 正方形：对齐卡片头部实际高度（padding 8×2 + 内容 ≈ 36px） */
     border: 1px solid var(--line);
     border-radius: var(--r-md);
-    background: #fff;
+    background: var(--surface);
     color: var(--primary);
     display: flex; align-items: center; justify-content: center;
     box-shadow: var(--elev-1);
@@ -410,7 +445,7 @@
     position: absolute; right: 16px; bottom: 64px;
     width: 36px; height: 36px;
     border: 1px solid var(--line); border-radius: var(--r-md);
-    background: #fff; color: var(--primary);
+    background: var(--surface); color: var(--primary);
     display: flex; align-items: center; justify-content: center;
     box-shadow: var(--elev-1); cursor: pointer; z-index: 25;
     transition: all .2s var(--ease-std);
@@ -425,7 +460,7 @@
   body.immersive #stage { inset: 0; }
   body.immersive #btn-immersive {
     right: 10px; bottom: auto; top: 10px; width: 26px; height: 26px;
-    border-radius: 50%; opacity: .35; background: rgba(255,255,255,.8);
+    border-radius: 50%; opacity: .35; background: var(--surface-glass);
   }
   body.immersive #btn-immersive .material-icons { font-size: 16px; }
 
@@ -433,7 +468,7 @@
   #play-ctl {
     position: absolute; left: 16px; bottom: 64px;   /* 动态：每帧按日志高度调整（日志上方） */
     width: min(300px, calc(100vw - 32px));
-    background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: var(--r-md);
+    background: var(--surface-glass); border: 1px solid var(--line); border-radius: var(--r-md);
     box-shadow: var(--elev-1); padding: 8px 12px 10px; z-index: 15;
     display: flex; flex-direction: column; gap: 6px;
     font-size: 11px; color: var(--dim);
@@ -444,15 +479,15 @@
   #pc-progress { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px;
     background: linear-gradient(to right, var(--primary) var(--fill,0%), #dbe3ec var(--fill,0%)); outline: none; font-size: 16px; }
   #pc-progress::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%;
-    background: #fff; border: 2.5px solid var(--primary); box-shadow: 0 1px 3px rgba(23,40,58,.25); cursor: pointer;
+    background: var(--surface); border: 2.5px solid var(--primary); box-shadow: 0 1px 3px rgba(23,40,58,.25); cursor: pointer;
     transition: transform .1s var(--ease-std); }
   #pc-progress:active::-webkit-slider-thumb { transform: scale(1.25); }
-  #pc-progress::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #fff; border: 2.5px solid var(--primary); cursor: pointer; }
+  #pc-progress::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--surface); border: 2.5px solid var(--primary); cursor: pointer; }
   #pc-time { white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 500; }   /* 2026-08-16：数字加粗（用户偏好 PHYS 数值观感） */
   .pc-btns { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
   .pc-btn {
     height: 26px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px;
-    background: #fff; color: var(--text); font-size: 11px; font-family: inherit; font-weight: 500; cursor: pointer;
+    background: var(--surface); color: var(--text); font-size: 11px; font-family: inherit; font-weight: 500; cursor: pointer;
     display: inline-flex; align-items: center; gap: 4px;
     transition: background .12s var(--ease-std), border-color .12s var(--ease-std);
   }
@@ -475,6 +510,7 @@
   <i class="material-icons ab-icon">view_in_ar</i>
   <span class="ab-title">MMD 白模查看器</span>
   <span class="ab-spacer"></span>
+  <button id="btn-theme" title="切换深色/浅色模式"><i class="material-icons">dark_mode</i></button>
   <span class="ab-status"><span class="status-dot"></span><b id="ab-model">加载中…</b></span>
 </header>
 <main id="stage">
@@ -654,6 +690,7 @@
         <span id="pc-time">0:00 / 0:00</span>
       </div>
       <div class="pc-btns">
+        <button class="pc-btn pc-icon" id="pc-pause" title="暂停/继续"><i class="material-icons">pause</i></button>
         <button class="pc-btn" id="pc-fwd" title="快进 10 秒">+10s</button>
         <button class="pc-speed pc-btn" data-s="0.5">0.5×</button>
         <button class="pc-speed pc-btn active" data-s="1">1×</button>
@@ -805,8 +842,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 stage.appendChild(renderer.domElement);
 
 /* ---- 光照：白模需要充足光源 ---- */
-scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-const key = new THREE.DirectionalLight(0xffffff, 1.8);
+const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+scene.add(ambient);
+let key = new THREE.DirectionalLight(0xffffff, 1.8);
 key.position.set(5, 10, 7);
 scene.add(key);
 const fill = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -822,6 +860,18 @@ scene.add(group);
 
 /* 地面网格 */
 const grid = new THREE.GridHelper(24, 24, 0xb9c7d4, 0xcfd9e2);
+/* 深色模式：场景配色随主题切换（2026-08-16） */
+function applySceneTheme() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  scene.background.set(dark ? 0x0d1219 : 0xe3eaf2);
+  grid.material.color.set(dark ? 0x273341 : 0xb9c7d4);
+  grid.material.color2.set(dark ? 0x36455a : 0xcfd9e2);
+  ring.material.color.set(dark ? 0x3a4d63 : 0x9fb2c4);
+  ambient.intensity = dark ? 0.9 : 1.0;
+  key.intensity = dark ? 1.5 : 1.8;
+  fill.intensity = dark ? 0.6 : 0.8;
+  rim.intensity = dark ? 0.5 : 0.7;
+}
 grid.position.y = -0.01;
 grid.material.transparent = true;
 grid.material.opacity = 0.55;
@@ -1273,6 +1323,7 @@ function aKey(a) { return (currentId || 'x') + '|' + a.id; }
 let currentAction = null;       /* 当前动作 id（null=无） */
 let camAnimated = false;        /* 相机曾被镜头动作驱动（2026-08-16：切无镜头动作时需先恢复初始视角） */
 let actionSpeed = 1;            /* 动作播放倍速（0.5/1/1.5/2，进度条控制） */
+let actionPaused = false;       /* 播放暂停（2026-08-16：暂停按钮） */
 let pcSeeking = false;          /* 进度条拖动中（避免被每帧刷新覆盖） */
 let bgmAudio = null;            /* BGM（懒加载；WAV 不入库，缺失时降级） */
 let bgmWarned = false;
@@ -1333,6 +1384,7 @@ function stopAction() {
   }
   stopBGM();
   hidePlayCtl();   /* 隐藏播放控制条 */
+  actionPaused = false;   /* 2026-08-16：停止后复位暂停状态 */
   currentAction = null;
   updateActionUI();
 }
@@ -1456,6 +1508,18 @@ document.getElementById('pc-fwd').addEventListener('click', () => {
   if (action && dur > 0) action.time = Math.min(action.time + 10, dur);   /* 修复：操作 action.time */
   if (bgmAudio && !bgmAudio.paused) bgmAudio.currentTime = Math.min((bgmAudio.currentTime || 0) + 10, dur || 1e9);
 });
+
+/* 暂停/继续（2026-08-16）：action.paused + BGM 同步 */
+document.getElementById('pc-pause').addEventListener('click', () => {
+  actionPaused = !actionPaused;
+  const action = getPlayAction();
+  if (action) action.paused = actionPaused;
+  if (bgmAudio) {
+    if (actionPaused) bgmAudio.pause();
+    else bgmAudio.play().catch(() => {});
+  }
+  document.getElementById('pc-pause').querySelector('i').textContent = actionPaused ? 'play_arrow' : 'pause';
+});
 function playAction(a, preClip) {
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
   if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
@@ -1520,7 +1584,8 @@ function playAction(a, preClip) {
     }
     currentAction = a.id;
     if (a.bgm) playBGM(a.bgm);
-    showPlayCtl();   /* 显示播放控制条（进度/倍速/快进） */
+    showPlayCtl();   /* 显示播放控制条（进度/倍速/快进/暂停） */
+    actionPaused = false;   /* 2026-08-16：新播放不继承暂停 */
     appendLine({ t: '动作：' + a.name + ' 播放中（一次；再点停止；播放期间待机摇摆暂停）', c: 'ok' });
     updateActionUI();
   };
@@ -2165,6 +2230,35 @@ if (physCard) physCard.querySelector('.pp-head').addEventListener('click', e => 
   if (wasMin) raiseCardTop(physCard);   /* 展开时置顶 30，其余回落 20（MODELS 固定 40 最上） */
 });
 animate();
+
+/* ============================================================
+ * 深色模式（2026-08-16）：CSS 变量 + 场景配色 + 持久化 + 系统跟随
+ * ============================================================ */
+const THEME_KEY = 'mmd-theme';
+function updateThemeIcon() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const ic = document.querySelector('#btn-theme i');
+  if (ic) ic.textContent = dark ? 'light_mode' : 'dark_mode';
+}
+function setTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  applySceneTheme();
+  updateThemeIcon();
+  try { localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); } catch (e) {}
+}
+document.getElementById('btn-theme').addEventListener('click', () => {
+  setTheme(document.documentElement.getAttribute('data-theme') !== 'dark');
+});
+/* 初始化：localStorage 优先，否则跟随系统 */
+(function initTheme() {
+  let dark = false;
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved) dark = saved === 'dark';
+    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) dark = true;
+  } catch (e) {}
+  setTheme(dark);
+})();
 
 /* P3-2：resize 防抖（rAF 合并）+ 同步 pixelRatio，转屏/缩放窗口不再抖动模糊 */
 let resizeRaf = null;
