@@ -737,3 +737,41 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## 🎨 2026-08-18 · 修正：详情卡片学 PHYS 结构（用户纠错，非放大）
+
+> 用户反馈：上一轮对详情（HUD）卡片的"可触碰区小"处理错误——要求**学习 PHYS 的头部设计**，
+> 而不是硬加 min-height/min-width 撑大；且 PHYS 折叠态变宽了。全部纠正。
+
+### 详情（HUD）卡片：结构对齐 PHYS（不是放大）
+
+- **错误做法**（已撤销）：`min-height: 36px` 硬撑头部 + 折叠 `min-width: 132px` 硬撑宽度
+- **正确做法**（用户要求"学习 PHYS 设计"）：
+  - `hud-head` 自带 `padding: 8px 14px` + `border-bottom`——与 `pp-head` 完全一致，
+    整个头部条（含 padding）都是可点区，高度自然 ≈38px（MD2 触摸目标）
+  - `hud-body` 自带 `padding: 8px 14px`——与 `pp-body` 一致；折叠时 `padding: 0 14px`
+  - 折叠态 `width: fit-content; min-width: 0`——**min-width: 0 必须**，
+    否则展开态 172px 的 min-width 常驻会顶住收缩（CSS 中 min-width 优先于 width）
+
+### PHYS 折叠态变宽：恢复 `width: auto`
+
+- **根因**：上轮把 `width: auto`（北辰版）改成 `width: fit-content`——fit-content 会撑到
+  内容最大可能宽度（含 MODELS 按钮等），折叠态反而更宽
+- **修复**：恢复 `width: auto`（北辰版原样，shrink-to-fit 正确收缩）
+
+### 验证
+
+- 折叠宽度：HUD ≈103px（详情+箭头）、PHYS ≈179px（含 MODELS 按钮）——均收缩合理
+- 重叠模拟：320/360/390/414px 视口折叠态全部不重叠 ✅
+- HUD 与 PHYS 结构逐项对齐（padding/border-bottom/折叠 padding）✅
+- CSS 平衡 181/181、JS 语法通过、无 min-height/min-width 硬撑残留 ✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*

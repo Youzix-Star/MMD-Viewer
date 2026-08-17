@@ -80,13 +80,12 @@
   #stage canvas { display: block; width: 100%; height: 100%; cursor: grab; }
   #stage canvas:active { cursor: grabbing; }
 
-  /* ===== HUD 信息卡（左上） ===== */
+  /* ===== HUD 信息卡（左上，结构学习 PHYS：头部自带 padding+分隔线，全条可点） ===== */
   #hud {
     position: absolute; left: 16px; top: 16px;
     min-width: 172px;
     background: var(--surface);
     border-radius: var(--r-sm);
-    padding: 8px 14px;
     font-size: 12px;
     color: var(--dim);
     pointer-events: none;   /* 头部可点击，内容区不挡 3D 操作 */
@@ -99,23 +98,25 @@
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     cursor: pointer; user-select: none;
     pointer-events: auto;
-    min-height: 36px;   /* 修复(2026-08-18)：头部可点区增大——MD2 触摸目标下限，与 PHYS 头部观感一致 */
+    padding: 8px 14px;   /* 学 PHYS pp-head：头部自带 padding，全条可点（不再硬加 min-height） */
+    border-bottom: 1px solid var(--line);   /* 学 PHYS：头部分隔线 */
   }
   #hud .hud-title { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text); }
   #hud .hud-title .material-icons { font-size: 15px; color: var(--primary); }
   #hud .hud-toggle { color: var(--dim); display: flex; }
   #hud .hud-toggle .material-icons { font-size: 18px; }
   #hud .hud-body {
-    margin-top: 8px; line-height: 1.9;
+    padding: 8px 14px;   /* 学 PHYS pp-body：内容区自带 padding */
+    line-height: 1.9;
     max-height: 300px; overflow: hidden; opacity: 1;
     transition: max-height 300ms var(--ease-std),
                 opacity 300ms var(--ease-std),
-                margin 300ms var(--ease-std);
+                padding 300ms var(--ease-std);
   }
   #hud .hud-row { display: flex; justify-content: space-between; gap: 18px; }
   #hud b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
-  #hud.min { width: fit-content; min-width: 132px; }   /* 折叠：宽度收缩到头部内容但保底 132px（可点区不缩太小，与 PHYS 头部观感一致；宽度不走动画） */
-  #hud.min .hud-body { max-height: 0; opacity: 0; margin-top: 0; }   /* 折叠只收高度 */
+  #hud.min { width: fit-content; min-width: 0; }   /* 折叠：宽度收缩到头部内容（min-width 归零，否则 172px 常驻顶住收缩；学 PHYS width:auto；不走动画） */
+  #hud.min .hud-body { max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden; }   /* 折叠只收高度 */
   /* 折叠箭头：统一用 expand_more 基图标，CSS 旋转表达方向（修复(2026-08-18)：JS innerHTML 换图标与 rotate 叠加导致方向反/动画失效） */
   #hud .hud-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #hud.min .hud-toggle .material-icons { transform: rotate(0deg); }
@@ -313,9 +314,9 @@
   #phys-panel .pp-body::-webkit-scrollbar { width: 4px; }
   #phys-panel .pp-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
   #phys-panel .pp-row { display: flex; align-items: center; gap: 10px; }
-  /* 修复(2026-08-18)：折叠态宽度收缩到头部内容（fit-content），解决与 HUD 折叠态重叠；
+  /* 修复(2026-08-18)：折叠态宽度收缩（学北辰 width:auto——fit-content 会撑到内容最大宽导致折叠更宽）；
    * 宽度不走动画（只收高度），避免 min-width 动画双跑 */
-  #phys-panel.min { width: fit-content; }
+  #phys-panel.min { width: auto; }
   #phys-panel.min .pp-body { max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden; }
   #phys-panel .pp-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #phys-panel.min .pp-toggle .material-icons { transform: rotate(0deg); }
