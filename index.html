@@ -1653,9 +1653,11 @@ document.getElementById('pc-fwd').addEventListener('click', () => {
   }
   if (bgmAudio && !bgmAudio.paused) bgmAudio.currentTime = Math.min((bgmAudio.currentTime || 0) + 10, dur || 1e9);
 });
+let actionLoading = false;   /* 修复：动作异步加载期间防止重复点击（P1 竞态守卫） */
 function playAction(a, preClip) {
   if (!mmdMesh) { appendLine({ t: '动作：请先加载模型', c: 'warn' }); return; }
   if (currentAction === a.id) { stopAction(); appendLine({ t: '动作：' + a.name + ' 已停止', c: 'dim' }); return; }  /* 再点当前动作 = 停止 */
+  if (actionLoading) { appendLine({ t: '动作：正在加载中，请稍候', c: 'dim' }); return; }   /* P1 守卫：加载期间忽略 */
   stopAction();
   /* 修复(2026-08-16)：从"含镜头动作"切换过来时相机停在旧镜头末帧——
    * 播放无镜头动作前恢复初始视角，否则新舞蹈画面仍倾斜 */
@@ -1737,12 +1739,15 @@ function playAction(a, preClip) {
   if (preClip) { actionClips[aKey(a)] = preClip; doPlay(preClip); return; }   /* 直接播放（clip 已生成） */
   if (actionClips[aKey(a)]) { doPlay(actionClips[aKey(a)]); return; }
   appendLine({ t: '动作：加载 ' + a.name + ' …', c: 'dim' });
+  actionLoading = true;   /* P1 守卫：标记加载中 */
   /* 修复(2026-08-15)：r160 MMDAnimationHelper 直接吃 AnimationClip，不吃 VMD 原始数据——
    * 用 loadAnimation 按目标类型转换（模型→build(vmd,mesh)，相机→buildCameraAnimation(vmd)） */
   loader.loadAnimation(a.file, a.camera ? camera : mmdMesh, clip => {
+    actionLoading = false;   /* P1 守卫：加载完成 */
     actionClips[aKey(a)] = clip;
     doPlay(clip);
   }, undefined, err => {
+    actionLoading = false;   /* P1 守卫：加载失败也解除 */
     console.error(err);
     appendLine({ t: '动作：' + a.name + ' 加载失败: ' + err.message, c: 'err' });
   });
