@@ -92,13 +92,14 @@
     pointer-events: none;   /* 头部可点击，内容区不挡 3D 操作 */
     box-shadow: var(--elev-2);
     z-index: 20;
-    /* 修复(2026-08-18 天衡)：删除 min-width 过渡——与 body max-height 动画双跑会让卡片宽度收缩到 0
-     * （北辰"卡片宽度动画、箭头被挤出"回滚根源）；只保留 body 高度展开，卡片宽度恒定 172px */
+    /* 修复(2026-08-18 天衡)：宽度动画已移除——折叠态宽度瞬时收缩（width 变化不参与 transition），
+     * 高度 body 动画保留。避免 min-width 动画与 max-height 双跑（北辰回滚根源） */
   }
   #hud .hud-head {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     cursor: pointer; user-select: none;
     pointer-events: auto;
+    min-height: 36px;   /* 修复(2026-08-18)：头部可点区增大——MD2 触摸目标下限，与 PHYS 头部观感一致 */
   }
   #hud .hud-title { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text); }
   #hud .hud-title .material-icons { font-size: 15px; color: var(--primary); }
@@ -113,7 +114,8 @@
   }
   #hud .hud-row { display: flex; justify-content: space-between; gap: 18px; }
   #hud b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
-  #hud.min .hud-body { max-height: 0; opacity: 0; margin-top: 0; }   /* 折叠只收高度，宽度不变（修 min-width:0 溢出） */
+  #hud.min { width: fit-content; min-width: 132px; }   /* 折叠：宽度收缩到头部内容但保底 132px（可点区不缩太小，与 PHYS 头部观感一致；宽度不走动画） */
+  #hud.min .hud-body { max-height: 0; opacity: 0; margin-top: 0; }   /* 折叠只收高度 */
   /* 折叠箭头：统一用 expand_more 基图标，CSS 旋转表达方向（修复(2026-08-18)：JS innerHTML 换图标与 rotate 叠加导致方向反/动画失效） */
   #hud .hud-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #hud.min .hud-toggle .material-icons { transform: rotate(0deg); }
@@ -249,7 +251,14 @@
     z-index: 40;   /* 弹出层永远最高（高于 HUD/PHYS 动态置顶 30） */
     display: none;
   }
-  #model-panel.show { display: block; }
+  #model-panel.show {
+    display: block;
+    animation: md-pop-in 225ms var(--ease-decel);   /* 功能(2026-08-18)：打开动画——MD2 弹出 225ms 减速进入，只动 transform/opacity */
+  }
+  @keyframes md-pop-in {
+    from { opacity: 0; transform: translateY(-8px) scale(.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
   #model-panel .mp-head {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 14px;
@@ -294,7 +303,8 @@
     border-radius: 6px; color: var(--dim); font-size: 14px; cursor: pointer;
   }
   #model-panel .mp-edit:hover { background: var(--surface2); color: var(--primary); }
-  #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; max-height: 68vh; overflow-y: auto; overscroll-behavior: contain;
+  #phys-panel .pp-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 11px; max-height: 68vh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+    /* 修复(2026-08-18)：加 overflow-x: hidden——flex 列内容超宽时原本可横向滚动（"四周都能滑"），只允许上下滚动 */
     transition: max-height 300ms var(--ease-std),
                 opacity 300ms var(--ease-std),
                 padding 300ms var(--ease-std);
@@ -303,7 +313,9 @@
   #phys-panel .pp-body::-webkit-scrollbar { width: 4px; }
   #phys-panel .pp-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
   #phys-panel .pp-row { display: flex; align-items: center; gap: 10px; }
-  /* 修复(2026-08-18)：删除 #phys-panel.min { width: auto }——折叠时宽度收缩会与高度动画叠加（HUD min-width bug 同源），宽度恒定 252px */
+  /* 修复(2026-08-18)：折叠态宽度收缩到头部内容（fit-content），解决与 HUD 折叠态重叠；
+   * 宽度不走动画（只收高度），避免 min-width 动画双跑 */
+  #phys-panel.min { width: fit-content; }
   #phys-panel.min .pp-body { max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden; }
   #phys-panel .pp-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #phys-panel.min .pp-toggle .material-icons { transform: rotate(0deg); }
@@ -1820,11 +1832,17 @@ document.addEventListener('click', e => {
   if (modelPanel.classList.contains('show') && !modelPanel.contains(e.target) && !e.target.closest('.pp-models')) {
     modelPanel.classList.remove('show');
   }
+  /* 修复(2026-08-18)：PHYS 收缩逻辑——点击"空白"（卡片内部非交互区或卡片外）收缩；
+   * 点击可交互元素（按钮/开关/滑块/罗盘/头部折叠钮/MODELS）不收缩。
+   * 原逻辑是"点卡片外才收缩"，导致点内部空白无反应；用户要求：空白即收缩，交互区不收缩 */
   const physCard = document.getElementById('phys-panel');
-  if (physCard && !physCard.classList.contains('min') && !physCard.contains(e.target) && !e.target.closest('.pp-models')) {
-    physCard.classList.add('min');
-    physCard.style.zIndex = '20';   /* 收起回落基础层级，避免压住 HUD */
-    /* 修复(2026-08-18)：不手动换图标，CSS rotate 接管方向 */
+  if (physCard && !physCard.classList.contains('min')) {
+    const interactive = e.target.closest('.pp-head, .pp-models, .pp-reset, .switch, .pp-range, .wind-dial, #model-panel, button, input, label');
+    if (!interactive) {   /* 非交互区：卡片内空白 / 卡片外，均收缩 */
+      physCard.classList.add('min');
+      physCard.style.zIndex = '20';   /* 收起回落基础层级，避免压住 HUD */
+      /* 修复(2026-08-18)：不手动换图标，CSS rotate 接管方向 */
+    }
   }
 });
 

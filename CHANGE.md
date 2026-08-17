@@ -684,3 +684,56 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## 🐛 2026-08-18 · 修复：PHYS 滚动/卡片重叠/MODELS 动画/点击交互（天衡，用户实测反馈）
+
+> 用户实测 5 项问题，全部定位根因并修复（commit 待提交）。
+
+### 1. PHYS 展开内容可"四周滑动"（应只上下）
+
+- **根因**：`.pp-body` 只设 `overflow-y: auto`，flex 列内容超宽时横向也能滚动
+- **修复**：加 `overflow-x: hidden`——只允许上下滚动
+
+### 2. 详情（HUD）与 PHYS 折叠态相互重叠
+
+- **根因**：上一轮修复"折叠宽度收缩"时把 `#hud.min`/`#phys-panel.min` 的宽度收缩删了
+  （为避 min-width 动画），导致折叠态保持全宽（172px/252px）→ 窄屏重叠
+- **修复**：折叠态改 `width: fit-content`（宽度瞬时收缩，不走动画）：
+  - HUD 折叠：`fit-content` + 保底 `min-width: 132px`（可点区不缩太小）
+  - PHYS 折叠：`fit-content`
+  - 验证：320~414px 视口折叠态全部不重叠；展开态重叠是文档记录的已知取舍（接受）
+
+### 3. 打开 MODELS 面板无动画
+
+- **修复**：`.show` 加 `md-pop-in` 动画——225ms MD2 Deceleration 曲线，
+  只动 transform/opacity（GPU 属性），`translateY(-8px) scale(.98) → 0/1`
+
+### 4. 详情（HUD）头部可触碰区过小
+
+- **根因**：HUD 折叠态 `fit-content` 后头部只有"详情+箭头"约 90px 宽，PHYS 头部有
+  MODELS 按钮明显更宽；且头部无最小高度
+- **修复**：`.hud-head` 加 `min-height: 36px`（MD2 触摸目标下限）；折叠态保底 `min-width: 132px`
+
+### 5. PHYS 展开卡片：点空白应收缩、点交互区不收缩
+
+- **根因**：原逻辑是"点卡片**外**才收缩"——点卡片内部空白无反应
+- **修复**：重写 document click handler——点击非交互区（卡片内空白/卡片外）收缩；
+  点击交互元素（`.pp-head`/`.pp-models`/`.pp-reset`/`.switch`/`.pp-range`/`.wind-dial`/
+  `#model-panel`/button/input/label）不收缩
+
+### 验证
+
+- CSS 括号平衡 181/181、变量零未定义 ✅
+- JS 语法（classic + module）通过 ✅
+- 无宽度 transition 残留（折叠宽度瞬时收缩，高度仍平滑动画）✅
+- 折叠态重叠模拟：320/360/390/414px 全部不重叠 ✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
