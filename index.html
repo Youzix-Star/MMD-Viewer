@@ -406,7 +406,7 @@
   #btn-reset .material-icons { font-size: 20px; }
 
   /* ===== 沉浸模式按钮（2026-08-16：一键隐藏全部界面观摩） ===== */
-  #btn-immersive, #btn-immersive-v {
+  #btn-immersive {
     position: absolute; right: 16px; bottom: 64px;
     width: 36px; height: 36px;
     border: 1px solid var(--line); border-radius: var(--r-md);
@@ -415,14 +415,12 @@
     box-shadow: var(--elev-1); cursor: pointer; z-index: 25;
     transition: all .2s var(--ease-std);
   }
-  #btn-immersive-v { right: 60px; }   /* 竖屏沉浸：并排（左移 44px） */
-  #btn-immersive:active, #btn-immersive-v:active { background: var(--surface2); }
-  #btn-immersive .material-icons, #btn-immersive-v .material-icons { font-size: 20px; }
+  #btn-immersive:active { background: var(--surface2); }
+  #btn-immersive .material-icons { font-size: 20px; }
   /* 沉浸态：隐藏全部界面，按钮缩成右上角半透明小圆点（点击恢复） */
   body.immersive #appbar, body.immersive #hud, body.immersive #phys-panel,
   body.immersive #model-panel, body.immersive #log, body.immersive #play-ctl,
   body.immersive #btn-reset { display: none !important; }
-  body.immersive #btn-immersive-v { display: none !important; }   /* 竖屏按钮沉浸时隐藏，恢复入口用全屏按钮圆点 */
   /* 沉浸时 stage 扩展全屏（原顶栏 52px 区域也变成 3D 画面，2026-08-16 用户反馈） */
   body.immersive #stage { inset: 0; }
   body.immersive #btn-immersive {
@@ -648,8 +646,7 @@
       </div>
     </div>
     <button id="btn-reset" title="复位视角"><i class="material-icons">restart_alt</i></button>
-    <button id="btn-immersive" title="沉浸模式（浏览器全屏，移动端会横屏）"><i class="material-icons">fullscreen</i></button>
-    <button id="btn-immersive-v" title="沉浸模式（保持竖屏，不全屏）"><i class="material-icons">stay_current_portrait</i></button>
+    <button id="btn-immersive" title="沉浸模式（隐藏全部界面）"><i class="material-icons">fullscreen</i></button>
     <!-- 播放控制条（动作播放时显示：进度拖动/倍速/快进/复位，2026-08-16） -->
     <div id="play-ctl" class="hidden">
       <div class="pc-main">
@@ -2093,11 +2090,6 @@ function animate() {
 }
 /* 沉浸模式（2026-08-16：隐藏全部界面 + 浏览器全屏观摩；按钮缩角落圆点点击恢复） */
 const btnImmersive = document.getElementById('btn-immersive');
-/* 竖屏沉浸（2026-08-16：只隐藏 UI + 画面全屏，不 requestFullscreen——保持竖屏） */
-const btnImmersiveV = document.getElementById('btn-immersive-v');
-if (btnImmersiveV) btnImmersiveV.addEventListener('click', () => {
-  setImmersiveUI(!document.body.classList.contains('immersive'));
-});
 function setImmersiveUI(on) {
   document.body.classList.toggle('immersive', on);
   const ic = document.querySelector('#btn-immersive i');
@@ -2108,7 +2100,7 @@ function setImmersiveUI(on) {
 if (btnImmersive) btnImmersive.addEventListener('click', () => {
   const on = !document.body.classList.contains('immersive');
   setImmersiveUI(on);
-  /* 浏览器级全屏（隐藏地址栏/状态栏，移动端会横屏——用户认可此设计） */
+  /* 浏览器级全屏（隐藏地址栏/状态栏） */
   const el = document.documentElement;
   if (on) {
     if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
