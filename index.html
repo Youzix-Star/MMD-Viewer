@@ -91,14 +91,13 @@
     pointer-events: none;   /* 头部可点击，内容区不挡 3D 操作 */
     box-shadow: var(--elev-2);
     z-index: 20;
-    /* 修复(2026-08-18 天衡)：宽度动画已移除——折叠态宽度瞬时收缩（width 变化不参与 transition），
-     * 高度 body 动画保留。避免 min-width 动画与 max-height 双跑（北辰回滚根源） */
+    transition: width 300ms var(--ease-std);   /* 折叠/展开宽度平滑过渡（宽度由 JS 锁定为头部内容宽/展开宽） */
   }
   #hud .hud-head {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     cursor: pointer; user-select: none;
     pointer-events: auto;
-    padding: 8px 14px;   /* 学 PHYS pp-head：头部自带 padding，全条可点（不再硬加 min-height） */
+    padding: 8px 14px;   /* 学 PHYS pp-head：头部自带 padding，全条可点 */
     border-bottom: 1px solid var(--line);   /* 学 PHYS：头部分隔线 */
   }
   #hud .hud-title { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text); }
@@ -108,17 +107,15 @@
   #hud .hud-body {
     padding: 8px 14px;   /* 学 PHYS pp-body：内容区自带 padding */
     line-height: 1.9;
-    transition: max-height 300ms var(--ease-std), opacity 300ms var(--ease-std), padding 300ms var(--ease-std);
     max-height: 300px; opacity: 1;
+    overflow: hidden;
+    transition: max-height 300ms var(--ease-std), opacity 300ms var(--ease-std), padding 300ms var(--ease-std);
   }
   #hud .hud-row { display: flex; justify-content: space-between; gap: 18px; }
   #hud b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
-  #hud.min { width: fit-content; min-width: 0; }   /* 折叠：宽度收缩到头部内容（min-width 归零，否则 172px 常驻顶住收缩；学 PHYS width:auto；不走动画） */
-  /* 折叠(2026-08-18)：同 PHYS——body absolute 移出文档流（不参与宽度计算）+ 保留 max-height/opacity 动画 */
-  #hud.min .hud-body {
-    position: absolute; left: 0; right: 0; top: 100%;
-    max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden;
-  }
+  /* 折叠(2026-08-18)：body 留在文档流（max-height/opacity 动画），宽度由 JS 锁定为头部内容宽——
+   * 不再 absolute/display:none（保证文字淡入连贯、宽度有动画） */
+  #hud.min .hud-body { max-height: 0; opacity: 0; padding: 0 14px; }
   /* 折叠箭头：统一用 expand_more 基图标，CSS 旋转表达方向（修复(2026-08-18)：JS innerHTML 换图标与 rotate 叠加导致方向反/动画失效） */
   #hud .hud-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #hud.min .hud-toggle .material-icons { transform: rotate(0deg); }
@@ -218,6 +215,7 @@
     z-index: 20;
     box-shadow: var(--elev-4);
     user-select: none;
+    transition: width 300ms var(--ease-std);   /* 折叠/展开宽度平滑过渡（宽度由 JS 锁定） */
   }
   #phys-panel .pp-head {
     display: flex; align-items: center; gap: 6px;
@@ -314,36 +312,31 @@
   #phys-panel .pp-body::-webkit-scrollbar { width: 4px; }
   #phys-panel .pp-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
   #phys-panel .pp-row { display: flex; align-items: center; gap: 10px; }
-  /* 折叠(2026-08-18 天衡定案)：body 用 absolute 移出文档流——不参与父元素 shrink-to-fit 宽度计算
-   * （解决"隐藏内容撑宽折叠卡片"，风向罗盘等宽行不再把卡片撑到 ~200px），
-   * 同时保留 max-height/opacity 折叠动画（display:none 无动画，用户要求动画回来）。
-   * top:100% = 定位在头部正下方；折叠时父宽 = 头部内容宽（width:auto 生效） */
-  #phys-panel.min { width: auto; }
-  #phys-panel.min .pp-body {
-    position: absolute; left: 0; right: 0; top: 100%;
-    max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden;
-    z-index: 1;   /* 动画期间叠在卡片上，不遮挡 3D */
-  }
+  /* 折叠(2026-08-18)：body 留在文档流（max-height/opacity 动画，文字淡入连贯），
+   * 宽度由 JS 锁定为头部内容宽——不再 absolute/display:none（宽度动画可过渡） */
+  #phys-panel.min .pp-body { max-height: 0; opacity: 0; padding: 0 14px; overflow: hidden; }
   #phys-panel .pp-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #phys-panel.min .pp-toggle .material-icons { transform: rotate(0deg); }
   #phys-panel:not(.min) .pp-toggle .material-icons { transform: rotate(180deg); }
 
-  /* ===== 加载日志卡（左下，可折叠，最多 4 条） ===== */
+  /* ===== 加载日志卡（左下，可折叠，最多 4 条；头部结构学 HUD/PHYS） ===== */
   #log {
     position: absolute; left: 16px; bottom: 16px;   /* 贴底（复位按钮在右下，不冲突） */
     width: min(300px, calc(100vw - 32px));
     background: var(--surface);
     border-radius: var(--r-sm);
     box-shadow: var(--elev-2);
-    padding: 8px 14px;   /* 与 HUD/PHYS 头部水平对齐（历史遗留：曾为 12px 致三卡左缘不齐） */
     font-size: 12px;
     z-index: 15;   /* 固定底层，不参与 HUD/PHYS 置顶争抢 */
     pointer-events: none;
+    transition: width 300ms var(--ease-std);   /* 折叠/展开宽度平滑过渡（宽度由 JS 锁定） */
   }
   #log .log-head {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     cursor: pointer; user-select: none;
     pointer-events: auto;
+    padding: 8px 14px;   /* 学 HUD/PHYS 头部：自带 padding，全条可点 */
+    border-bottom: 1px solid var(--line);   /* 学 HUD/PHYS：头部分隔线 */
   }
   #log .log-title { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text); }
   #log .log-title .material-icons { font-size: 15px; color: var(--primary); }
@@ -355,15 +348,13 @@
   #log .log-toggle { color: var(--dim); }
   #log .log-toggle .material-icons { font-size: 18px; }
   #log .log-body {
-    margin-top: 6px;
-    transition: max-height 300ms var(--ease-std), opacity 300ms var(--ease-std), margin 300ms var(--ease-std);
+    padding: 8px 14px;   /* 学 HUD/PHYS：内容区自带 padding */
     max-height: 200px; opacity: 1;
+    overflow: hidden;
+    transition: max-height 300ms var(--ease-std), opacity 300ms var(--ease-std), padding 300ms var(--ease-std);
   }
-  /* 折叠(2026-08-18)：同 PHYS/HUD——body absolute 移出文档流（不参与宽度计算）+ 保留 max-height/opacity 动画 */
-  #log.min .log-body {
-    position: absolute; left: 0; right: 0; top: 100%;
-    max-height: 0; opacity: 0; margin-top: 0; overflow: hidden;
-  }
+  /* 折叠(2026-08-18)：同 PHYS/HUD——body 留文档流 + max-height/opacity 动画，宽度由 JS 锁定 */
+  #log.min .log-body { max-height: 0; opacity: 0; padding: 0 14px; }
   #log .log-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #log.min .log-toggle .material-icons { transform: rotate(0deg); }
   #log:not(.min) .log-toggle .material-icons { transform: rotate(180deg); }
@@ -905,6 +896,30 @@ function raiseCardTop(el) {
   document.querySelectorAll('#hud, #phys-panel').forEach(c => {
     c.style.zIndex = (c === el) ? 30 : 20;
   });
+}
+
+/* 折叠/展开统一入口（2026-08-18）：折叠时把卡片宽度锁定为头部内容宽（触发 width 过渡动画），
+ * 展开时恢复展开宽度。宽度锁定让 body 留在文档流做 max-height/opacity 动画（文字淡入连贯），
+ * 同时不被隐藏 body 内容撑宽（见 CHANGE.md 折叠动画演进记录） */
+function setCardCollapsed(card, min) {
+  if (min) {
+    const head = card.querySelector('.pp-head, .hud-head, .log-head');
+    if (head) {
+      /* 头部内容自然宽 = padding + 各子元素实际宽 + gap。
+       * 不能用 head.offsetWidth/scrollWidth：flex 容器会撑满父宽（252px）。
+       * 子元素（title/toggle/MODELS）都是 inline-flex/行内，getBoundingClientRect 返回内容实际宽 */
+      const cs = window.getComputedStyle(head);
+      let w = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      const children = Array.from(head.children);
+      for (const ch of children) w += ch.getBoundingClientRect().width;
+      w += (children.length > 1 ? children.length - 1 : 0) * parseFloat(cs.gap || 0) || 0;
+      card.style.width = Math.ceil(w) + 'px';   /* 锁定为头部内容宽，触发 width 过渡 */
+    }
+    card.classList.add('min');
+  } else {
+    card.classList.remove('min');
+    card.style.width = '';   /* 恢复 CSS 定义的展开宽度，触发 width 过渡 */
+  }
 }
 
 /* 模型加载器（LoadingManager 统一纹理路径，反斜杠转正斜杠） */
@@ -1470,7 +1485,7 @@ function showPlayCtl() {
   const log = document.getElementById('log');
   if (log) {
     logWasMin = log.classList.contains('min');
-    log.classList.add('min');
+    setCardCollapsed(log, true);
     /* 修复(2026-08-18)：不再手动换图标文字——箭头方向由 CSS rotate 统一控制（防 innerHTML 重建致动画失效/方向反） */
   }
   document.getElementById('play-ctl').classList.remove('hidden');
@@ -1480,7 +1495,7 @@ function hidePlayCtl() {
   if (ctl) ctl.classList.add('hidden');
   const log = document.getElementById('log');
   if (log && !logWasMin) {
-    log.classList.remove('min');
+    setCardCollapsed(log, false);
     /* 修复(2026-08-18)：同上，CSS rotate 接管方向 */
   }
   pcSeeking = false;
@@ -1848,7 +1863,7 @@ document.addEventListener('click', e => {
   if (physCard && !physCard.classList.contains('min')) {
     const interactive = e.target.closest('.pp-head, .pp-models, .pp-reset, .switch, .pp-range, .wind-dial, #model-panel, button, input, label');
     if (!interactive) {   /* 非交互区：卡片内空白 / 卡片外，均收缩 */
-      physCard.classList.add('min');
+      setCardCollapsed(physCard, true);
       physCard.style.zIndex = '20';   /* 收起回落基础层级，避免压住 HUD */
       /* 修复(2026-08-18)：不手动换图标，CSS rotate 接管方向 */
     }
@@ -2195,7 +2210,7 @@ if (btnReset) btnReset.addEventListener('click', () => {
 const logCard = document.getElementById('log');
 if (logCard) {
   logCard.querySelector('.log-head').addEventListener('click', () => {
-    logCard.classList.toggle('min');
+    setCardCollapsed(logCard, !logCard.classList.contains('min'));
     /* 修复(2026-08-18)：不换图标文字——CSS rotate 统一控制箭头方向（原 innerHTML 重建破坏过渡动画） */
   });
 }
@@ -2205,7 +2220,7 @@ const hudEl = document.getElementById('hud');
 if (hudEl) {
   hudEl.querySelector('.hud-head').addEventListener('click', () => {
     const wasMin = hudEl.classList.contains('min');
-    hudEl.classList.toggle('min');
+    setCardCollapsed(hudEl, !wasMin);   /* 目标状态 = 当前相反：折叠↔展开 */
     if (wasMin) raiseCardTop(hudEl);   /* 仅展开时置顶（历史遗留：折叠时也置顶，与 PHYS 不对称） */
     /* 修复(2026-08-18)：不换图标文字——CSS rotate 统一控制箭头方向 */
   });
@@ -2215,7 +2230,7 @@ const physCard = document.getElementById('phys-panel');
 if (physCard) physCard.querySelector('.pp-head').addEventListener('click', e => {
   if (e.target.closest('.pp-models')) return;
   const wasMin = physCard.classList.contains('min');
-  physCard.classList.toggle('min');
+  setCardCollapsed(physCard, !wasMin);
   /* 修复(2026-08-18)：不换图标文字——CSS rotate 统一控制箭头方向 */
   if (wasMin) raiseCardTop(physCard);   /* 展开时置顶 30，其余回落 20（MODELS 固定 40 最上） */
 });

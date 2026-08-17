@@ -866,3 +866,56 @@
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## ✨ 2026-08-18 · 折叠动画完善：宽度动画 + 文字淡入 + 日志头部对齐（用户反馈）
+
+> 用户反馈：① 文字出现突兀；② 只有高度动画、宽度无动画；③ 日志点击范围应学详情/PHYS；
+> ④ 动画曲线不如"有 bug 宽度那版"（北辰 max-height+opacity+padding 三过渡版）。
+
+### 根因
+
+- **文字突兀**：折叠时 body 用 `position: absolute` 移出流——展开时 position 瞬时切回 static，
+  元素位置/渲染状态突变，opacity 淡入被打断
+- **宽度无动画**：宽度由 CSS `width:auto`/`fit-content` 控制，走 transition 时目标值不是明确 px，无法过渡
+- **日志头部**：`.log-head` 无 padding/分隔线（靠卡片外层 padding），点击区小
+- **曲线不如旧版**：旧版有 max-height+opacity+padding 三过渡，本次删 padding 过渡导致跳动
+
+### 修复方案：JS 锁定宽度 + body 留流动画
+
+1. **宽度动画**：新增 `setCardCollapsed(card, min)` 统一入口——
+   折叠时把卡片 `style.width` 设为**头部内容自然宽**（遍历 head 子元素
+   getBoundingClientRect 求和 + padding + gap，不能用 offsetWidth/scrollWidth——
+   flex 容器会撑满父宽 252px），触发 `transition: width 300ms` 平滑过渡；
+   展开时 `style.width=''` 恢复 CSS 展开宽
+2. **文字淡入**：body 留在文档流做 `max-height + opacity + padding` 三过渡
+   （同北辰旧版曲线），不再 absolute/display:none——显式 width 锁定后 body 内容不会撑宽
+3. **日志头部学 HUD/PHYS**：`.log-head` 加 `padding: 8px 14px` + `border-bottom`，
+   `.log-body` 加 `padding: 8px 14px`（三卡头部结构完全统一）
+4. **曲线还原**：三 body 恢复 `transition: max-height/opacity/padding 300ms var(--ease-std)`
+   （北辰旧版同款）
+
+### 折叠机制演进（CHANGE 记录）
+
+| 方案 | 宽度 | 动画 | 文字 |
+|------|------|------|------|
+| max-height 折叠（北辰） | ❌ 撑宽 | ✅ | 正常 |
+| display:none 折叠 | ✅ | ❌ | 无动画 |
+| absolute 折叠 | ✅ | ✅ 但位置跳 | ❌ 突兀 |
+| **JS 锁宽 + body 留流（本轮）** | ✅ | ✅ 高度+宽度 | ✅ 淡入 |
+
+### 验证
+
+- CSS 平衡 179/179、JS 语法通过 ✅
+- width 过渡 3 处（HUD/PHYS/LOG）+ padding 过渡 3 处 ✅
+- 无 absolute/display:none 折叠残留 ✅
+- 三卡头部结构统一（padding 8px 14px + border-bottom）✅
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
