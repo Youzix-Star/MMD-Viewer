@@ -918,7 +918,7 @@ function appendLine(line) {
   logArchive.push({ t: raw, c: c, ts: ts });
   const icon = c === 'err' ? 'error' : c === 'warn' ? 'warning' : c === 'dim' ? 'info' : 'check_circle';
   const text = raw
-    .replace(/^\[ (?:OK|\.\.|WARN|ERR|PHYS) \]\s*/, '')
+    .replace(/^\[ (?:OK|\.\.) \]\s*/, '')
     .replace(/\s*\.{3,}\s*$/, '');
   const div = document.createElement('div');
   div.className = 'log-item ' + c;
@@ -1484,7 +1484,7 @@ function onModelLoaded(mesh) {
   document.getElementById('hud-f').textContent = Math.round(f);
 
   setupPhysics(mesh);  /* 物理系统（three 官方 MMDPhysics + 参数调校） */
-  appendLine({ t: '[ OK ] ' + modelLabel + ' 加载完成，模型已居中 ........', c: 'ok' });
+  appendLine({ t: modelLabel + ' 加载完成，模型已居中', c: 'ok' });
   /* 面板高亮当前模型 */
   modelList.querySelectorAll('.mp-item').forEach(b => b.classList.toggle('current', b.dataset.id === currentId));
   /* AppBar + HUD 显示当前模型名（历史遗留：HUD 模型行曾写死 HATSUNE_MIKU_01，切换模型不更新） */
