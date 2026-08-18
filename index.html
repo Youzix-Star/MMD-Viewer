@@ -2086,22 +2086,25 @@ document.getElementById('mi-pmx-file').addEventListener('change', e => {
 });
 
 /* 三个纹理文件夹选择（webkitdirectory + 文件接口，不限文件类型） */
-function bindFolderInput(btnId, inputId, nameEl, destArr) {
+function bindFolderInput(btnId, inputId, nameEl, destArr, folderName) {
   document.getElementById(btnId).addEventListener('click', () => document.getElementById(inputId).click());
   document.getElementById(inputId).addEventListener('change', e => {
     const files = e.target.files;
+    appendLine({ t: '[ DEBUG ] 文件夹选择触发: ' + folderName + ', files=' + (files ? files.length : 0), c: 'dim' });
     if (!files || !files.length) return;
-    /* 保留文件列表，后续构建映射时用 webkitRelativePath 取相对路径 */
     destArr.length = 0;
-    for (const f of files) destArr.push(f);
+    for (const f of files) {
+      destArr.push(f);
+      appendLine({ t: '[ DEBUG ]   ' + (f.webkitRelativePath || f.name), c: 'dim' });
+    }
     nameEl.textContent = files.length + ' 个文件';
     nameEl.classList.add('chosen');
     e.target.value = '';
   });
 }
-bindFolderInput('mi-toon-btn', 'mi-toon-dir', miToonName, miToonFiles);
-bindFolderInput('mi-tex-btn', 'mi-tex-dir', miTexName, miTexFiles);
-bindFolderInput('mi-spa-btn', 'mi-spa-dir', miSpaName, miSpaFiles);
+bindFolderInput('mi-toon-btn', 'mi-toon-dir', miToonName, miToonFiles, 'toon');
+bindFolderInput('mi-tex-btn', 'mi-tex-dir', miTexName, miTexFiles, 'tex');
+bindFolderInput('mi-spa-btn', 'mi-spa-dir', miSpaName, miSpaFiles, 'spa');
 
 /* 释放旧的纹理 blob URL */
 function releaseMiTexUrls() {
@@ -2135,6 +2138,7 @@ function registerTexFiles(files, folderName) {
 document.getElementById('mi-ok').addEventListener('click', async () => {
   if (!miPmxFile) { appendLine({ t: '模型导入：请先选择 PMX 文件', c: 'warn' }); return; }
   const texCount = miToonFiles.length + miTexFiles.length + miSpaFiles.length;
+  if (texCount === 0) appendLine({ t: '模型导入：未选择纹理文件夹，模型可能显示异常（透明/灰色）', c: 'warn' });
   appendLine({ t: '模型导入：解析 ' + miPmxFile.name + (texCount ? '（含 ' + texCount + ' 张纹理）' : '') + ' …', c: 'dim' });
   closeModelImportModal();
 
