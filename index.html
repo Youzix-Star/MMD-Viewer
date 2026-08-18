@@ -2147,9 +2147,12 @@ document.getElementById('mi-ok').addEventListener('click', async () => {
   /* 3. 自定义 LoadingManager：拦截纹理请求，按文件路径匹配 blob URL */
   const importManager = new THREE.LoadingManager();
   importManager.setURLModifier(url => {
-    const lower = url.toLowerCase();
-    const name = url.split('/').pop().toLowerCase();
-    return miTexMap[lower] || miTexMap[name] || url;
+    /* PMX 纹理路径可能含反斜杠（Windows 风格），先统一转正斜杠 */
+    const normalized = url.replace(/\\/g, '/');
+    const lower = normalized.toLowerCase();
+    const name = normalized.split('/').pop().toLowerCase();
+    /* 精确匹配：toon/toon01.bmp > 文件名兜底：toon01.bmp */
+    return miTexMap[lower] || miTexMap[name] || normalized;
   });
 
   /* 4. 解析 PMX + 构建 mesh（绕过 load() 的 URL 扩展名检查） */
