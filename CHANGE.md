@@ -1267,3 +1267,69 @@ if (stageCanvas && stageCanvas.contains(e.target)) {
 ---
 
 *记录由天衡维护。改动请及时归档，保持"每一步都有据可查"。*
+
+---
+
+## 📦 2026-08-19 · 翼轸阶段：模型导入功能
+
+### 功能概述
+
+MODELS 面板头部新增「导入」按钮，支持用户在手机端选择本地 PMX 文件（+ 纹理）临时加载模型。
+刷新页面后消失，不写入文件系统。
+
+### UI 设计
+
+- **MODELS 面板**：头部新增「📥 导入」胶囊按钮（与 VMD 动作导入同款样式）
+- **导入弹窗**：复用 `log-modal-card` + `import-body` 样式
+  - PMX 文件选择（单文件）
+  - 纹理文件夹选择 ×3：`toon/`、`tex/`、`spa/`（`webkitdirectory`）
+  - 进入/关闭动画（225ms Deceleration / 195ms Acceleration）
+  - Esc 键、遮罩点击关闭
+
+### 技术实现
+
+**核心思路**：绕过 `MMDLoader.load()` 的 URL 扩展名检查，直接解析 PMX ArrayBuffer。
+
+```
+用户选 PMX ──→ ArrayBuffer ──→ parser.parsePmx(buffer) ──→ meshBuilder.build(data) ──→ mesh
+用户选纹理 ──→ { "folder/filename": blob URL } ──→ setURLModifier() 拦截纹理请求
+```
+
+**关键步骤**：
+1. PMX → `ArrayBuffer`（不创建 blob URL，直接消费）
+2. 纹理 → 按 `folderName/filename` 注册到映射表（如 `toon/hair.png`）
+3. 自定义 `LoadingManager.setURLModifier()` 拦截纹理请求，按路径匹配 blob URL
+4. 独立 `MMDLoader` 实例加载（不干扰主 loader 的 texManager）
+5. 成功后调用 `onModelLoaded(mesh)` 复用现有加载链路
+6. 临时模型追加到模型列表（带「临时导入」标签）
+
+**纹理匹配策略**（三级）：
+1. 精确匹配：`toon/hair.png`（folderName + filename）
+2. webkitRelativePath 匹配（桌面端兼容）
+3. 纯文件名兜底：`hair.png`（同名文件会被后注册覆盖）
+
+### 踩坑记录
+
+| # | 问题 | 根因 | 修复 |
+|---|------|------|------|
+| 1 | 弹窗默认显示 | `#model-import-modal` 缺 `.hidden` CSS 规则（同 2026-08-16 import-modal 同款） | 补齐定位 + 隐藏规则 |
+| 2 | `Unknown model file extension` | blob URL 无 `.pmx` 后缀，`MMDLoader.load()` 检查扩展名失败 | 改用 `parser.parsePmx()` + `meshBuilder.build()` 直接解析 |
+| 3 | `setResourcePath is not a function` | `MeshBuilder` 无此方法，`resourcePath` 是 `build()` 的参数 | 改为 `meshBuilder.build(data, '')` |
+| 4 | 纹理映射表为空（0 条） | `openModelImportModal` 用 `= []` 重赋值数组，闭包捕获的旧数组引用断裂 | 改用 `.length = 0` 原地清空 |
+| 5 | 纹理路径不匹配 | Android `webkitdirectory` 不填充 `webkitRelativePath`，同名文件互相覆盖 | 用 `folderName + filename` 手动拼路径 |
+| 6 | 反斜杠路径不匹配 | PMX 纹理路径用反斜杠（Windows 风格） | `setURLModifier` 内 `url.replace(/\\/g, '/')` |
+
+### 文件改动
+
+| 文件 | 改动 |
+|------|------|
+| `index.html` | HTML：MODEL 面板头部导入按钮 + 导入弹窗 DOM；CSS：导入按钮样式 + 弹窗定位/隐藏规则；JS：~120 行（文件选择、纹理映射、加载、释放） |
+
+### 素材纪律
+
+- 本次无素材变更
+- 导入的模型为临时加载，不写入项目文件系统
+
+---
+
+*记录由翼轸维护。改动请及时归档，保持"每一步都有据可查"。*
