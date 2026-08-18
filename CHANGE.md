@@ -1171,3 +1171,69 @@ if (stageCanvas && stageCanvas.contains(e.target)) {
 ---
 
 *记录由北辰维护。*
+
+---
+
+## 🎯 2026-08-18 · 北辰第二阶段：代码审查 + Bug 修复 + MDC Switch
+
+> 基于 GitHub 版本（c43218a）工作，三个并行子代理审查发现全部功能性 bug 并修复。
+
+### 安全：邮箱重写（P0）
+
+- 本地 git config 改为 noreply → filter-repo 重写全部 96 个提交 → force push 成功
+- SHA 全部变更，内容/作者名/时间不变
+
+### Bug 修复汇总（14 项）
+
+| # | 级别 | 问题 | 状态 |
+|---|------|------|------|
+| 1 | P1 | 动作双击竞态（h.add 抛异常） | ✅ actionLoading 锁 |
+| 2 | P2 | 切模型与 VMD 加载竞态 | ✅ meshWhenLoad 守卫 |
+| 3 | P2 | 弹窗 closing 动画期间重开 | ✅ clearTimeout + remove closing |
+| 4 | P2 | blob URL 不 revoke | ✅ revokeObjectURL |
+| 5 | P2 | WebGL context lost | ✅ 监听 + animRunning |
+| 6 | P2 | 全局 error 过度升级 | ✅ 只拦截资源加载 |
+| 7 | P3 | Esc 只关一个弹窗 | ✅ 按优先级依次关闭 |
+| 8 | P3 | copyLogs 失败仍显示已复制 | ✅ 失败提示 |
+| 9 | P3 | ammoReady 无超时 | ✅ 15 秒超时 |
+| 10 | P3 | 无 constraints 模型 TypeError | ✅ 空数组兜底 |
+| 11 | P3 | manifest 空时静默 | ✅ 提示用户 |
+| 12 | P3 | 死代码 3 处 | ✅ 已清理 |
+| 13 | - | CSS 变量未使用 3 个 | ✅ 已删除 |
+| 14 | - | 文档数字漂移 | ✅ 已更新 |
+
+### MDC Switch 改造
+
+- 严格按 material-components-web 规范
+- 34×18dp → 27×10.5dp（等比 75%）
+- Track: 5.25dp 圆角，#e0e0e0 关闭态
+- Handle: 15dp 圆形，白色，translateX(16.5px)
+- 200ms MD2 standard easing
+- focus-visible 焦点样式
+
+### 尝试后回滚的改动
+
+| 改动 | 回滚原因 |
+|------|---------|
+| MD2 颜色体系 + 阴影 + 去边框 | 不理解 MD2 就硬套 |
+| 卡片宽度动画（min-width/width） | 浏览器表现不一致 |
+| scaleY 折叠动画 | 视觉味道不对 |
+| will-change 优化 | 视觉味道不对 |
+| MDC FAB（56dp 复位/40dp 沉浸） | 太大 |
+| MDC Top App Bar（56dp） | 不要了 |
+| 弹窗 animation→transition | 导致播放控制条位置异常 |
+
+### 保留的教训
+
+1. **不理解的规范不要硬套**：MD2 不是改几个变量就行
+2. **animation→transition 会破坏 offsetHeight 计算**：`visibility: hidden` 的元素仍有 offsetHeight，而 `display: none` 没有——这个差异会导致依赖 offsetHeight 的 JS 逻辑出错
+3. **改完必须在真机测试**：CSS 改动必须刷新页面完整验证
+4. **用户说回滚就回滚**：不要试图"再修一下"
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
+*记录由北辰维护。*
