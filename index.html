@@ -2119,19 +2119,19 @@ function registerTexFiles(files, folderName) {
   for (const f of files) {
     const url = URL.createObjectURL(f);
     miTexUrls.push(url);
-    /* 按文件名注册（兜底匹配） */
-    miTexMap[f.name.toLowerCase()] = url;
-    /* 按 webkitRelativePath 的最后两级注册（精确匹配：toon/toon01.bmp） */
+    /* 1. 按 "folder/filename" 注册（精确匹配：toon/hair.png） */
+    const folderKey = (folderName + '/' + f.name).toLowerCase();
+    miTexMap[folderKey] = url;
+    /* 2. 如果 webkitRelativePath 有值，也按它注册（兼容桌面端） */
     if (f.webkitRelativePath) {
       const parts = f.webkitRelativePath.split('/');
       if (parts.length >= 2) {
         const rel = parts.slice(-2).join('/').toLowerCase();
         miTexMap[rel] = url;
-        appendLine({ t: '[ DEBUG ] 注册纹理: ' + rel, c: 'dim' });
       }
-    } else {
-      appendLine({ t: '[ DEBUG ] 注册纹理(无路径): ' + f.name, c: 'dim' });
     }
+    /* 3. 按纯文件名注册（兜底：hair.png）——但同名文件会被后注册的覆盖 */
+    miTexMap[f.name.toLowerCase()] = url;
   }
 }
 
