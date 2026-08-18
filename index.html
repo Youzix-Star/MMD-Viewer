@@ -2158,7 +2158,7 @@ document.getElementById('mi-ok').addEventListener('click', async () => {
     const importLoader = new MMDLoader(importManager);
     const parser = importLoader._getParser();
     const pmxData = parser.parsePmx(pmxBuffer, true);
-    const mesh = importLoader.meshBuilder.setResourcePath('').build(pmxData, '');
+    const mesh = importLoader.meshBuilder.build(pmxData, '');
     if (seq !== loadSeq) { disposeModel(mesh); releaseMiTexUrls(); return; }
     /* 5. 复用现有加载链路 */
     modelLabel = miPmxFile.name;
