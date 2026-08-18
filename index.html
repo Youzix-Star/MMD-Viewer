@@ -2052,9 +2052,10 @@ let miTexUrls = [];     /* 已创建的 blob URL 列表（释放用） */
 
 function openModelImportModal() {
   miPmxFile = null;
-  miToonFiles = [];
-  miTexFiles = [];
-  miSpaFiles = [];
+  /* 清空数组内容（不能 = [] 重新赋值，否则 bindFolderInput 闭包引用的旧数组脱节） */
+  miToonFiles.length = 0;
+  miTexFiles.length = 0;
+  miSpaFiles.length = 0;
   miPmxName.textContent = '未选择（.pmx 模型文件）';
   miPmxName.classList.remove('chosen');
   [miToonName, miTexName, miSpaName].forEach(el => {
