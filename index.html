@@ -282,12 +282,21 @@
     to   { opacity: 0; transform: translateY(16px) scale(.98); }
   }
   #model-panel .mp-head {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; gap: 8px;
     padding: 10px 14px;
     border-bottom: 1px solid var(--line);
     font-weight: 500; color: var(--text);
   }
+  #model-panel .mp-head span:first-child { flex: 1; }
   #model-panel .mp-close { color: var(--dim); cursor: pointer; padding: 0 4px; font-size: 14px; }
+  #model-panel .mp-model-import {
+    display: inline-flex; align-items: center; gap: 3px;
+    height: 22px; padding: 0 8px;
+    border: 1px solid var(--line); border-radius: 999px;
+    color: var(--primary); font-size: 10px; cursor: pointer;
+  }
+  #model-panel .mp-model-import:active { background: var(--surface2); }
+  #model-panel .mp-model-import .material-icons { font-size: 13px; }
   #model-panel .mp-list { padding: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
   #model-panel .mp-item {
     padding: 10px 12px;
@@ -451,6 +460,12 @@
     z-index: 100; padding: 24px 16px;
   }
   #import-modal.hidden { display: none; }
+  #model-import-modal {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, .32);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 24px 16px;
+  }
+  #model-import-modal.hidden { display: none; }
   .import-card { width: min(440px, 94vw); height: auto; margin-top: 0; }
   .import-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
   .import-row { display: flex; align-items: center; gap: 8px; }
@@ -658,7 +673,13 @@
       </div>
     </div>
     <div id="model-panel">
-      <div class="mp-head"><span>选择模型</span><span class="mp-close">✕</span></div>
+      <div class="mp-head">
+        <span>选择模型</span>
+        <span class="mp-model-import" id="model-import" title="浏览器导入 PMX 临时加载模型（刷新后消失）">
+          <i class="material-icons">file_open</i>导入
+        </span>
+        <span class="mp-close">✕</span>
+      </div>
       <div class="mp-list" id="model-list"></div>
       <div class="mp-actions">
         <div class="mp-actions-title">动作
@@ -719,6 +740,34 @@
           </div>
           <div class="pp-row pp-btns" style="margin-top:14px">
             <button class="pp-reset" id="import-ok"><i class="material-icons">play_arrow</i>导入并播放</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 模型导入弹窗（2026-08-19：PMX + 纹理临时加载） -->
+    <div id="model-import-modal" class="hidden">
+      <div class="log-modal-card import-card">
+        <div class="log-modal-head">
+          <span class="log-modal-title"><i class="material-icons">file_open</i>导入模型 <b>临时加载，刷新后消失</b></span>
+          <span class="log-modal-actions"><span id="model-import-close" title="关闭（Esc）"><i class="material-icons">close</i></span></span>
+        </div>
+        <div class="import-body">
+          <div class="import-row">
+            <span class="import-label"><i class="material-icons">view_in_ar</i>模型</span>
+            <span class="import-file" id="mi-pmx-name">未选择（.pmx 模型文件）</span>
+            <button class="pp-reset import-btn" id="mi-pmx-btn">选择文件</button>
+            <input type="file" id="mi-pmx-file" accept=".pmx" style="display:none">
+          </div>
+          <div class="import-row">
+            <span class="import-label"><i class="material-icons">image</i>纹理</span>
+            <span class="import-file" id="mi-tex-name">未选择（可选，贴图文件）</span>
+            <button class="pp-reset import-btn" id="mi-tex-file-btn">选文件</button>
+            <input type="file" id="mi-tex-file" accept="image/*" multiple style="display:none">
+            <button class="pp-reset import-btn" id="mi-tex-dir-btn">选文件夹</button>
+            <input type="file" id="mi-tex-dir" webkitdirectory style="display:none">
+          </div>
+          <div class="pp-row pp-btns" style="margin-top:14px">
+            <button class="pp-reset" id="mi-ok"><i class="material-icons">play_arrow</i>导入并加载</button>
           </div>
         </div>
       </div>
@@ -875,6 +924,7 @@ document.getElementById('log-copy').addEventListener('click', copyLogs);
 logModal.addEventListener('click', e => { if (e.target === logModal) closeLogModal(); });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    if (!miModal.classList.contains('hidden') && !miModal.classList.contains('closing')) { closeModelImportModal(); return; }
     const im = document.getElementById('import-modal');
     if (!im.classList.contains('hidden') && !im.classList.contains('closing')) { closeImportModal(); return; }
     if (!logModal.classList.contains('hidden') && !logModal.classList.contains('closing')) { closeLogModal(); return; }
@@ -1974,6 +2024,173 @@ for (const [kind, btnId, inputId, nameId] of importKinds) {
   });
 }
 document.getElementById('import-ok').addEventListener('click', doImport);
+
+/* ============================================================
+ * 模型导入（2026-08-19：PMX + 纹理临时加载，刷新后消失）
+ * ============================================================ */
+const miModal = document.getElementById('model-import-modal');
+const miPmxName = document.getElementById('mi-pmx-name');
+const miTexName = document.getElementById('mi-tex-name');
+let miPmxFile = null;
+let miTexFiles = [];   /* File[] 纹理文件列表 */
+let miTexMap = {};     /* { 文件名: blob URL } 纹理映射表 */
+let miTexUrls = [];    /* 已创建的 blob URL 列表（释放用） */
+
+function openModelImportModal() {
+  miPmxFile = null;
+  miTexFiles = [];
+  miPmxName.textContent = '未选择（.pmx 模型文件）';
+  miPmxName.classList.remove('chosen');
+  miTexName.textContent = '未选择（可选，贴图文件）';
+  miTexName.classList.remove('chosen');
+  clearTimeout(miModalCloseTimer);
+  miModal.classList.remove('hidden', 'closing');
+}
+let miModalCloseTimer = null;
+function closeModelImportModal() {
+  if (miModal.classList.contains('hidden') || miModal.classList.contains('closing')) return;
+  miModal.classList.add('closing');
+  miModalCloseTimer = setTimeout(() => {
+    miModal.classList.add('hidden');
+    miModal.classList.remove('closing');
+  }, 200);
+}
+
+/* PMX 文件选择 */
+document.getElementById('mi-pmx-btn').addEventListener('click', () => document.getElementById('mi-pmx-file').click());
+document.getElementById('mi-pmx-file').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  miPmxFile = f;
+  miPmxName.textContent = f.name;
+  miPmxName.classList.add('chosen');
+  e.target.value = '';
+});
+
+/* 纹理文件选择（多选） */
+document.getElementById('mi-tex-file-btn').addEventListener('click', () => document.getElementById('mi-tex-file').click());
+document.getElementById('mi-tex-file').addEventListener('change', e => {
+  const files = e.target.files;
+  if (!files || !files.length) return;
+  miTexFiles = Array.from(files);
+  miTexName.textContent = files.length + ' 个文件';
+  miTexName.classList.add('chosen');
+  e.target.value = '';
+});
+
+/* 纹理文件夹选择（webkitdirectory） */
+document.getElementById('mi-tex-dir-btn').addEventListener('click', () => document.getElementById('mi-tex-dir').click());
+document.getElementById('mi-tex-dir').addEventListener('change', e => {
+  const files = e.target.files;
+  if (!files || !files.length) return;
+  /* 文件夹选择保留webkitRelativePath：如 "模型贴图/tex/color.png" */
+  miTexFiles = Array.from(files);
+  miTexName.textContent = files.length + ' 个文件（文件夹）';
+  miTexName.classList.add('chosen');
+  e.target.value = '';
+});
+
+/* 释放旧的纹理 blob URL */
+function releaseMiTexUrls() {
+  for (const u of miTexUrls) URL.revokeObjectURL(u);
+  miTexUrls = [];
+  miTexMap = {};
+}
+
+/* 导入并加载模型 */
+document.getElementById('mi-ok').addEventListener('click', async () => {
+  if (!miPmxFile) { appendLine({ t: '模型导入：请先选择 PMX 文件', c: 'warn' }); return; }
+  appendLine({ t: '模型导入：解析 ' + miPmxFile.name + ' …', c: 'dim' });
+  closeModelImportModal();
+
+  /* 1. 读取 PMX 为 ArrayBuffer，创建 blob URL */
+  const pmxBuffer = await miPmxFile.arrayBuffer();
+  const pmxBlob = new Blob([pmxBuffer]);
+  const pmxUrl = URL.createObjectURL(pmxBlob);
+
+  /* 2. 构建纹理映射表：文件名 → blob URL */
+  releaseMiTexUrls();
+  for (const f of miTexFiles) {
+    const name = f.name;
+    const url = URL.createObjectURL(f);
+    miTexMap[name.toLowerCase()] = url;
+    miTexUrls.push(url);
+    /* 同时按完整路径注册（webkitdirectory 保留相对路径） */
+    if (f.webkitRelativePath) {
+      /* 取最后两级目录，如 "模型/tex/color.png" → "tex/color.png" */
+      const parts = f.webkitRelativePath.split('/');
+      if (parts.length >= 2) {
+        const rel = parts.slice(-2).join('/').toLowerCase();
+        miTexMap[rel] = url;
+      }
+    }
+  }
+
+  /* 3. 自定义 LoadingManager：拦截纹理请求，按文件名匹配 blob URL */
+  const importManager = new THREE.LoadingManager();
+  importManager.setURLModifier(url => {
+    /* 提取文件名（兼容路径格式） */
+    const name = url.split('/').pop().toLowerCase();
+    const nameDecoded = decodeURIComponent(name);
+    return miTexMap[name] || miTexMap[nameDecoded] || url;
+  });
+
+  /* 4. 用独立 MMDLoader 加载（不干扰主 loader 的 texManager） */
+  const seq = ++loadSeq;
+  const importLoader = new MMDLoader(importManager);
+  importLoader.load(pmxUrl, mesh => {
+    URL.revokeObjectURL(pmxUrl);   /* PMX blob 已消费，立即释放 */
+    if (seq !== loadSeq) { disposeModel(mesh); releaseMiTexUrls(); return; }
+    /* 5. 复用现有加载链路 */
+    modelLabel = miPmxFile.name;
+    currentId = 'import-' + miPmxFile.name;
+    onModelLoaded(mesh);
+    appendLine({ t: '模型导入：' + miPmxFile.name + ' 加载完成' + (miTexFiles.length ? '（含 ' + miTexFiles.length + ' 张纹理）' : ''), c: 'ok' });
+    /* 6. 追加到模型列表（临时条目，刷新后消失） */
+    addTempModel(currentId, miPmxFile.name);
+  }, undefined, err => {
+    URL.revokeObjectURL(pmxUrl);
+    if (seq !== loadSeq) return;
+    releaseMiTexUrls();
+    console.error(err);
+    appendLine({ t: '模型导入失败: ' + (err.message || err), c: 'err' });
+  });
+});
+
+/* 追加临时模型到模型列表 */
+function addTempModel(id, name) {
+  /* 去重：同名临时条目不重复添加 */
+  const existing = modelList.querySelector('[data-id="' + id + '"]');
+  if (existing) { existing.classList.add('current'); return; }
+  const btn = document.createElement('button');
+  btn.className = 'mp-item current';
+  btn.dataset.id = id;
+  btn.appendChild(document.createTextNode(name));
+  const note = document.createElement('span');
+  note.className = 'mp-note';
+  note.textContent = '临时导入';
+  btn.appendChild(note);
+  btn.addEventListener('click', () => {
+    hideModelPanel();
+    const seq = ++loadSeq;
+    appendLine({ t: '重新加载: ' + name, c: 'dim' });
+    modelLabel = name;
+    currentId = id;
+    /* 临时模型无法从 URL 重加载——提示用户重新导入 */
+    appendLine({ t: '临时模型需重新导入（刷新后消失）', c: 'warn' });
+  });
+  modelList.appendChild(btn);
+  /* 高亮切换 */
+  modelList.querySelectorAll('.mp-item').forEach(b => b.classList.toggle('current', b.dataset.id === id));
+}
+
+/* 打开模型导入弹窗（MODELS 面板头部导入按钮） */
+document.getElementById('model-import').addEventListener('click', e => {
+  e.stopPropagation();
+  openModelImportModal();
+});
+document.getElementById('model-import-close').addEventListener('click', closeModelImportModal);
+miModal.addEventListener('click', e => { if (e.target === miModal) closeModelImportModal(); });
 
 /* 加载清单模型：直接走 MMDLoader.load（与白模同一验证路径，纹理目录由 extractUrlBase 自动解析） */
 let loadSeq = 0;   /* 模型加载序号：防"慢模型后完成覆盖新模型"竞态（历史遗留，已修复） */
