@@ -388,13 +388,14 @@
   #log .log-toggle .material-icons { transition: transform 300ms var(--ease-std); }
   #log.min .log-toggle .material-icons { transform: rotate(0deg); }
   #log:not(.min) .log-toggle .material-icons { transform: rotate(180deg); }
-  #log .log-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; color: var(--dim); line-height: 1.5; }
+  #log .log-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; color: var(--dim); line-height: 1.5; }
   #log .log-item .material-icons { font-size: 14px; flex: 0 0 auto; }
   #log .log-item.ok  .material-icons { color: var(--primary); }
   #log .log-item.dim .material-icons { color: var(--dim); }
   #log .log-item.warn .material-icons { color: var(--amber); }
   #log .log-item.err .material-icons { color: var(--red); }
   #log .log-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #log .log-item .lm-time { font-size: 10px; color: var(--dim); opacity: .6; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
   #log .log-expand { color: var(--dim); cursor: pointer; border-radius: 6px; margin-left: auto; }
   #log .log-expand:hover { background: var(--surface2); color: var(--primary); }
   #log .log-expand .material-icons { font-size: 16px; }
@@ -448,6 +449,7 @@
     font-size: 12px; line-height: 1.7;
   }
   .log-modal-body .lm-item { display: flex; gap: 8px; padding: 2px 0; color: var(--dim); white-space: pre-wrap; word-break: break-all; }
+  .log-modal-body .lm-item .lm-time { font-size: 11px; color: var(--dim); opacity: .5; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
   .log-modal-body .lm-item.ok  { color: #2e7d32; }
   .log-modal-body .lm-item.warn { color: #e65100; }
   .log-modal-body .lm-item.err { color: #c62828; font-weight: 600; }
@@ -848,15 +850,23 @@ const logModal = document.getElementById('log-modal');
 const logModalList = document.getElementById('log-modal-list');
 const logCount = document.getElementById('log-count');
 
-function makeLogItem(raw, c) {
+function makeLogItem(raw, c, ts) {
   const d = document.createElement('div');
   d.className = 'lm-item ' + (c || 'dim');
-  d.textContent = raw;   /* 原文显示（含 [ OK ] 等前缀，便于排查） */
+  if (ts) {
+    const time = document.createElement('span');
+    time.className = 'lm-time';
+    time.textContent = ts;
+    d.appendChild(time);
+  }
+  const txt = document.createElement('span');
+  txt.textContent = raw;
+  d.appendChild(txt);
   return d;
 }
 function renderLogModal() {
   logModalList.innerHTML = '';
-  for (const it of logArchive) logModalList.appendChild(makeLogItem(it.t, it.c));
+  for (const it of logArchive) logModalList.appendChild(makeLogItem(it.t, it.c, it.ts));
   logModalList.scrollTop = logModalList.scrollHeight;
   logCount.textContent = '(' + logArchive.length + ' 条)';
 }
@@ -901,27 +911,33 @@ function fallbackCopy(txt) {
 function appendLine(line) {
   const c = line.c || 'ok';
   const raw = String(line.t);
-  logArchive.push({ t: raw, c: c });
+  const now = new Date();
+  const ts = String(now.getHours()).padStart(2, '0') + ':' +
+             String(now.getMinutes()).padStart(2, '0') + ':' +
+             String(now.getSeconds()).padStart(2, '0');
+  logArchive.push({ t: raw, c: c, ts: ts });
   const icon = c === 'err' ? 'error' : c === 'warn' ? 'warning' : c === 'dim' ? 'info' : 'check_circle';
   const text = raw
     .replace(/^\[ (?:OK|\.\.|WARN|ERR|PHYS) \]\s*/, '')
     .replace(/\s*\.{3,}\s*$/, '');
   const div = document.createElement('div');
   div.className = 'log-item ' + c;
-  /* 安全构造（历史遗留：innerHTML 拼接模型名/错误消息，含不可信文本时有注入风险；
-   * 与弹窗 makeLogItem 的 textContent 防护保持一致） */
+  const timeEl = document.createElement('span');
+  timeEl.className = 'lm-time';
+  timeEl.textContent = ts;
+  div.appendChild(timeEl);
   const iEl = document.createElement('i');
   iEl.className = 'material-icons';
   iEl.textContent = icon;
+  div.appendChild(iEl);
   const sEl = document.createElement('span');
   sEl.textContent = text;
-  div.appendChild(iEl);
   div.appendChild(sEl);
   logEl.appendChild(div);
   while (logEl.children.length > 4) logEl.removeChild(logEl.firstChild);
   /* 弹窗打开时实时追加 */
   if (!logModal.classList.contains('hidden')) {
-    logModalList.appendChild(makeLogItem(raw, c));
+    logModalList.appendChild(makeLogItem(raw, c, ts));
     logModalList.scrollTop = logModalList.scrollHeight;
     logCount.textContent = '(' + logArchive.length + ' 条)';
   }
