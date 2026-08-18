@@ -2128,17 +2128,15 @@ function registerTexFiles(files) {
   }
 }
 
-/* 导入并加载模型 */
+/* 导入并加载模型（直接解析 PMX buffer + builder.build，绕过 load() 的扩展名检查） */
 document.getElementById('mi-ok').addEventListener('click', async () => {
   if (!miPmxFile) { appendLine({ t: '模型导入：请先选择 PMX 文件', c: 'warn' }); return; }
   const texCount = miToonFiles.length + miTexFiles.length + miSpaFiles.length;
   appendLine({ t: '模型导入：解析 ' + miPmxFile.name + (texCount ? '（含 ' + texCount + ' 张纹理）' : '') + ' …', c: 'dim' });
   closeModelImportModal();
 
-  /* 1. 读取 PMX 为 ArrayBuffer，创建 blob URL */
+  /* 1. 读取 PMX 为 ArrayBuffer */
   const pmxBuffer = await miPmxFile.arrayBuffer();
-  const pmxBlob = new Blob([pmxBuffer]);
-  const pmxUrl = URL.createObjectURL(pmxBlob);
 
   /* 2. 构建纹理映射表：三个文件夹分别注册（toon/、tex/、spa/） */
   releaseMiTexUrls();
@@ -2149,33 +2147,31 @@ document.getElementById('mi-ok').addEventListener('click', async () => {
   /* 3. 自定义 LoadingManager：拦截纹理请求，按文件路径匹配 blob URL */
   const importManager = new THREE.LoadingManager();
   importManager.setURLModifier(url => {
-    /* PMX 引用纹理格式：反斜杠已由主 texManager 转正斜杠，这里提取最后两级 */
     const lower = url.toLowerCase();
     const name = url.split('/').pop().toLowerCase();
-    /* 精确匹配：toon/toon01.bmp > 文件名兜底：toon01.bmp */
     return miTexMap[lower] || miTexMap[name] || url;
   });
 
-  /* 4. 用独立 MMDLoader 加载（不干扰主 loader 的 texManager） */
+  /* 4. 解析 PMX + 构建 mesh（绕过 load() 的 URL 扩展名检查） */
   const seq = ++loadSeq;
-  const importLoader = new MMDLoader(importManager);
-  importLoader.load(pmxUrl, mesh => {
-    URL.revokeObjectURL(pmxUrl);   /* PMX blob 已消费，立即释放 */
+  try {
+    const importLoader = new MMDLoader(importManager);
+    const parser = importLoader._getParser();
+    const pmxData = parser.parsePmx(pmxBuffer, true);
+    const mesh = importLoader.meshBuilder.setResourcePath('').build(pmxData, '');
     if (seq !== loadSeq) { disposeModel(mesh); releaseMiTexUrls(); return; }
     /* 5. 复用现有加载链路 */
     modelLabel = miPmxFile.name;
     currentId = 'import-' + miPmxFile.name;
     onModelLoaded(mesh);
     appendLine({ t: '模型导入：' + miPmxFile.name + ' 加载完成' + (texCount ? '（' + texCount + ' 张纹理）' : ''), c: 'ok' });
-    /* 6. 追加到模型列表（临时条目，刷新后消失） */
     addTempModel(currentId, miPmxFile.name);
-  }, undefined, err => {
-    URL.revokeObjectURL(pmxUrl);
+  } catch (e) {
     if (seq !== loadSeq) return;
     releaseMiTexUrls();
-    console.error(err);
-    appendLine({ t: '模型导入失败: ' + (err.message || err), c: 'err' });
-  });
+    console.error(e);
+    appendLine({ t: '模型导入失败: ' + (e.message || e), c: 'err' });
+  }
 });
 
 /* 追加临时模型到模型列表 */
