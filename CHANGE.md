@@ -1371,4 +1371,53 @@ MODELS 面板头部新增「导入」按钮，支持用户在手机端选择本�
 
 ---
 
+## 🎨 2026-08-20 · UI 风格探索：Miuix
+
+### 背景
+
+用户希望将项目 UI 从 Material Design 2 迁移到小米 HyperOS 风格（Miuix）。
+
+### 探索过程
+
+1. **克隆 miuix 仓库**：`https://github.com/compose-miuix-ui/miuix`
+2. **研读文档**：颜色体系、主题系统、文字样式、组件规范
+3. **尝试构建**：
+   - 在 Termux 直接用 Gradle → `SystemInfo` 服务不可用（Android 内核不兼容）
+   - 安装 proot Ubuntu 容器 → Gradle 可以跑，但构建时间过长/超时
+   - 安装 JDK 17/21 → 版本兼容问题解决，但构建仍不稳定
+
+### Miuix 设计规范（已提取）
+
+| Token | Miuix (Light) | 当前 MD2 | 说明 |
+|-------|---------------|----------|------|
+| primary | `#3482FF` | `#1976D2` | 小米蓝 vs MD2 蓝 |
+| background | `#FFFFFF` | `#FAFAFA` | 纯白 vs 浅灰 |
+| surface | `#F7F7F7` | `#FFFFFF` | 微灰 vs 纯白 |
+| text | `#000000` | `rgba(0,0,0,.87)` | 纯黑 vs 87%黑 |
+| error | `#E94634` | `#B00020` | 橙红 vs 深红 |
+| divider | `#E0E0E0` | `rgba(0,0,0,.12)` | 类似 |
+| cornerRadius | `16dp` | `8px` | 大圆角 vs 小圆角 |
+| shadow | 无（扁平风） | MD2 三层海拔 | 核心差异 |
+
+### 技术路径分析
+
+| 方案 | 可行性 | 说明 |
+|------|--------|------|
+| **A. Kotlin/Compose 重写** | ❌ Termux 不兼容 | Gradle 需要完整 Linux 桌面环境 |
+| **B. 提取 Token 套 CSS** | ✅ 零成本 | 颜色/圆角/字体直接转 CSS 变量 |
+| **C. PC 上构建，Termux 上运行** | ✅ 需要电脑 | Kotlin/JS 编译后拷到 Termux |
+
+### 给下一任
+
+- miuix 仓库已克隆在 `/data/data/com.termux/files/home/Miku/miuix/`
+- 设计规范已提取（见上方表格）
+- 构建环境问题已定位（Termux 不兼容 Gradle）
+- 建议路径：**方案 B（CSS 变量）或 方案 C（PC 构建）**
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
 *记录由翼轸维护。改动请及时归档，保持"每一步都有据可查"。*
