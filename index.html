@@ -760,24 +760,7 @@
             <button class="pp-reset import-btn" id="mi-pmx-btn">选择文件</button>
             <input type="file" id="mi-pmx-file" accept=".pmx" style="display:none">
           </div>
-          <div class="import-row">
-            <span class="import-label"><i class="material-icons">folder</i>toon</span>
-            <span class="import-file" id="mi-toon-name">未选择</span>
-            <button class="pp-reset import-btn" id="mi-toon-btn">选文件夹</button>
-            <input type="file" id="mi-toon-dir" webkitdirectory style="display:none">
-          </div>
-          <div class="import-row">
-            <span class="import-label"><i class="material-icons">folder</i>tex</span>
-            <span class="import-file" id="mi-tex-name">未选择</span>
-            <button class="pp-reset import-btn" id="mi-tex-btn">选文件夹</button>
-            <input type="file" id="mi-tex-dir" webkitdirectory style="display:none">
-          </div>
-          <div class="import-row">
-            <span class="import-label"><i class="material-icons">folder</i>spa</span>
-            <span class="import-file" id="mi-spa-name">未选择</span>
-            <button class="pp-reset import-btn" id="mi-spa-btn">选文件夹</button>
-            <input type="file" id="mi-spa-dir" webkitdirectory style="display:none">
-          </div>
+          <div id="mi-tex-rows"></div>
           <div class="pp-row pp-btns" style="margin-top:14px">
             <button class="pp-reset" id="mi-ok"><i class="material-icons">play_arrow</i>导入并加载</button>
           </div>
@@ -2053,31 +2036,23 @@ document.getElementById('import-ok').addEventListener('click', doImport);
 
 /* ============================================================
  * 模型导入（2026-08-19：PMX + 纹理临时加载，刷新后消失）
+ * 动态文件夹：解析 PMX 提取纹理路径，自动生成对应文件夹选择行
  * ============================================================ */
 const miModal = document.getElementById('model-import-modal');
 const miPmxName = document.getElementById('mi-pmx-name');
-const miToonName = document.getElementById('mi-toon-name');
-const miTexName = document.getElementById('mi-tex-name');
-const miSpaName = document.getElementById('mi-spa-name');
+const miTexRows = document.getElementById('mi-tex-rows');
 let miPmxFile = null;
-let miToonFiles = [];   /* File[] toon 文件夹内的文件 */
-let miTexFiles = [];    /* File[] tex 文件夹内的文件 */
-let miSpaFiles = [];    /* File[] spa 文件夹内的文件 */
-let miTexMap = {};      /* { "toon/toon01.bmp": blob URL } 纹理映射表 */
-let miTexUrls = [];     /* 已创建的 blob URL 列表（释放用） */
+let miTexFolders = {};    /* { folderName: File[] } 动态文件夹→文件映射 */
+let miTexMap = {};        /* { "toon/toon01.bmp": blob URL } 纹理映射表 */
+let miTexUrls = [];       /* 已创建的 blob URL 列表（释放用） */
 
 function openModelImportModal() {
   miPmxFile = null;
-  /* 清空数组内容（不能 = [] 重新赋值，否则 bindFolderInput 闭包引用的旧数组脱节） */
-  miToonFiles.length = 0;
-  miTexFiles.length = 0;
-  miSpaFiles.length = 0;
+  miTexFolders = {};
+  miTexMap = {};
   miPmxName.textContent = '未选择（.pmx 模型文件）';
   miPmxName.classList.remove('chosen');
-  [miToonName, miTexName, miSpaName].forEach(el => {
-    el.textContent = '未选择';
-    el.classList.remove('chosen');
-  });
+  miTexRows.innerHTML = '<div style="font-size:11px;color:var(--dim);padding:4px 0">请先选择 PMX 文件，自动识别需要的纹理文件夹</div>';
   clearTimeout(miModalCloseTimer);
   miModal.classList.remove('hidden', 'closing');
 }
@@ -2091,33 +2066,71 @@ function closeModelImportModal() {
   }, 200);
 }
 
-/* PMX 文件选择 */
+/* PMX 文件选择 → 解析提取纹理路径 → 动态生成文件夹选择行 */
 document.getElementById('mi-pmx-btn').addEventListener('click', () => document.getElementById('mi-pmx-file').click());
-document.getElementById('mi-pmx-file').addEventListener('change', e => {
+document.getElementById('mi-pmx-file').addEventListener('change', async e => {
   const f = e.target.files && e.target.files[0];
   if (!f) return;
   miPmxFile = f;
   miPmxName.textContent = f.name;
   miPmxName.classList.add('chosen');
   e.target.value = '';
+
+  /* 解析 PMX 提取纹理路径 */
+  try {
+    const buffer = await f.arrayBuffer();
+    const parser = new MMDParser.Parser();
+    const data = parser.parsePmx(buffer, true);
+    /* 收集所有纹理路径（materials 里的 textureIndex / envTextureIndex / toonIndex） */
+    const texPaths = new Set();
+    if (data.textures) {
+      for (const t of data.textures) if (t) texPaths.add(t.replace(/\\/g, '/'));
+    }
+    /* 提取唯一文件夹前缀 */
+    const folders = new Set();
+    for (const p of texPaths) {
+      const parts = p.split('/');
+      if (parts.length > 1) folders.add(parts[0]);   /* 取第一级目录：toon、tex、spa 等 */
+    }
+    /* 动态生成文件夹选择行 */
+    buildFolderRows(folders.size > 0 ? [...folders] : ['textures'], texPaths);
+  } catch (err) {
+    console.error(err);
+    miTexRows.innerHTML = '<div style="font-size:11px;color:var(--red);padding:4px 0">PMX 解析失败：' + err.message + '</div>';
+  }
 });
 
-/* 三个纹理文件夹选择（webkitdirectory + 文件接口，不限文件类型） */
-function bindFolderInput(btnId, inputId, nameEl, destArr, folderName) {
-  document.getElementById(btnId).addEventListener('click', () => document.getElementById(inputId).click());
-  document.getElementById(inputId).addEventListener('change', e => {
-    const files = e.target.files;
-    if (!files || !files.length) return;
-    destArr.length = 0;
-    for (const f of files) destArr.push(f);
-    nameEl.textContent = files.length + ' 个文件';
-    nameEl.classList.add('chosen');
-    e.target.value = '';
-  });
+/* 动态生成文件夹选择行 */
+function buildFolderRows(folders, texPaths) {
+  miTexFolders = {};
+  miTexRows.innerHTML = '';
+  for (const folder of folders) {
+    miTexFolders[folder] = [];
+    const row = document.createElement('div');
+    row.className = 'import-row';
+    /* 显示该文件夹需要哪些文件 */
+    const needed = texPaths ? [...texPaths].filter(p => p.startsWith(folder + '/')).map(p => p.split('/').pop()).join(', ') : '';
+    row.innerHTML =
+      '<span class="import-label"><i class="material-icons">folder</i>' + folder + '</span>' +
+      '<span class="import-file mi-folder-name">未选择' + (needed ? '（需: ' + needed + '）' : '') + '</span>' +
+      '<button class="pp-reset import-btn mi-folder-btn">选文件夹</button>' +
+      '<input type="file" webkitdirectory style="display:none">';
+    const nameEl = row.querySelector('.mi-folder-name');
+    const btn = row.querySelector('.mi-folder-btn');
+    const input = row.querySelector('input');
+    btn.addEventListener('click', () => input.click());
+    input.addEventListener('change', ev => {
+      const files = ev.target.files;
+      if (!files || !files.length) return;
+      miTexFolders[folder].length = 0;
+      for (const f of files) miTexFolders[folder].push(f);
+      nameEl.textContent = files.length + ' 个文件';
+      nameEl.classList.add('chosen');
+      ev.target.value = '';
+    });
+    miTexRows.appendChild(row);
+  }
 }
-bindFolderInput('mi-toon-btn', 'mi-toon-dir', miToonName, miToonFiles, 'toon');
-bindFolderInput('mi-tex-btn', 'mi-tex-dir', miTexName, miTexFiles, 'tex');
-bindFolderInput('mi-spa-btn', 'mi-spa-dir', miSpaName, miSpaFiles, 'spa');
 
 /* 释放旧的纹理 blob URL */
 function releaseMiTexUrls() {
@@ -2131,10 +2144,8 @@ function registerTexFiles(files, folderName) {
   for (const f of files) {
     const url = URL.createObjectURL(f);
     miTexUrls.push(url);
-    /* 1. 按 "folder/filename" 注册（精确匹配：toon/hair.png） */
     const folderKey = (folderName + '/' + f.name).toLowerCase();
     miTexMap[folderKey] = url;
-    /* 2. 如果 webkitRelativePath 有值，也按它注册（兼容桌面端） */
     if (f.webkitRelativePath) {
       const parts = f.webkitRelativePath.split('/');
       if (parts.length >= 2) {
@@ -2142,7 +2153,6 @@ function registerTexFiles(files, folderName) {
         miTexMap[rel] = url;
       }
     }
-    /* 3. 按纯文件名注册（兜底：hair.png）——但同名文件会被后注册的覆盖 */
     miTexMap[f.name.toLowerCase()] = url;
   }
 }
@@ -2150,7 +2160,8 @@ function registerTexFiles(files, folderName) {
 /* 导入并加载模型（直接解析 PMX buffer + builder.build，绕过 load() 的扩展名检查） */
 document.getElementById('mi-ok').addEventListener('click', async () => {
   if (!miPmxFile) { appendLine({ t: '模型导入：请先选择 PMX 文件', c: 'warn' }); return; }
-  const texCount = miToonFiles.length + miTexFiles.length + miSpaFiles.length;
+  let texCount = 0;
+  for (const folder in miTexFolders) texCount += miTexFolders[folder].length;
   if (texCount === 0) appendLine({ t: '模型导入：未选择纹理文件夹，模型可能显示异常（透明/灰色）', c: 'warn' });
   appendLine({ t: '模型导入：解析 ' + miPmxFile.name + (texCount ? '（含 ' + texCount + ' 张纹理）' : '') + ' …', c: 'dim' });
   closeModelImportModal();
@@ -2158,11 +2169,11 @@ document.getElementById('mi-ok').addEventListener('click', async () => {
   /* 1. 读取 PMX 为 ArrayBuffer */
   const pmxBuffer = await miPmxFile.arrayBuffer();
 
-  /* 2. 构建纹理映射表：三个文件夹分别注册（toon/、tex/、spa/） */
+  /* 2. 构建纹理映射表：所有文件夹分别注册 */
   releaseMiTexUrls();
-  registerTexFiles(miToonFiles, 'toon');
-  registerTexFiles(miTexFiles, 'tex');
-  registerTexFiles(miSpaFiles, 'spa');
+  for (const folder in miTexFolders) {
+    registerTexFiles(miTexFolders[folder], folder);
+  }
 
   /* 3. 自定义 LoadingManager：拦截纹理请求，按文件路径匹配 blob URL */
   const importManager = new THREE.LoadingManager();
