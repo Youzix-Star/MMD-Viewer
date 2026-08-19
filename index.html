@@ -659,6 +659,11 @@
           <input type="range" class="pp-range" id="fps-cap" min="0" max="120" step="1" value="0">
           <b class="pp-val" id="fps-cap-v">不限</b>
         </div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">brightness_6</i>亮度</span>
+          <input type="range" class="pp-range" id="brightness" min="0.3" max="1.5" step="0.05" value="1.0">
+          <b class="pp-val" id="brightness-v">100%</b>
+        </div>
         <div class="pp-row pp-btns">
           <button class="pp-reset" id="phys-reset"><i class="material-icons">restart_alt</i>重置物理</button>
           <button class="pp-reset" id="phys-defaults"><i class="material-icons">settings_backup_restore</i>恢复默认</button>
@@ -972,8 +977,9 @@ renderer.domElement.addEventListener('webglcontextrestored', () => {
   appendLine({ t: '[ 渲染 ] WebGL 上下文已恢复', c: 'ok' });
 });
 
-/* ---- 光照：白模需要充足光源 ---- */
-scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+/* ---- 光照：白模需要充足光源（亮度可通过 PHYS 面板调节） ---- */
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+scene.add(ambientLight);
 const key = new THREE.DirectionalLight(0xffffff, 1.8);
 key.position.set(5, 10, 7);
 scene.add(key);
@@ -983,6 +989,14 @@ scene.add(fill);
 const rim = new THREE.DirectionalLight(0xffffff, 0.7);
 rim.position.set(0, 6, -10);
 scene.add(rim);
+
+/* 亮度调节：修改环境光 + 主光强度（基准值 × 亮度系数） */
+const BASE_AMBIENT = 1.0, BASE_KEY = 1.8;
+function applyBrightness() {
+  const b = physCfg.brightness;
+  ambientLight.intensity = BASE_AMBIENT * b;
+  key.intensity = BASE_KEY * b;
+}
 
 /* 承载模型，做旋转与浮动 */
 const group = new THREE.Group();
@@ -1098,9 +1112,9 @@ const ammoReady = new Promise((resolve, reject) => {
 });
 
 /* 物理参数（PHYS 面板可调；切换模型/复位视角均不重置） */
-const physCfg = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0 };
+const physCfg = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0, brightness: 1.0 };
 /* 出厂默认（"恢复默认"按钮用） */
-const PHYS_DEFAULTS = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0 };
+const PHYS_DEFAULTS = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0, brightness: 1.0 };
 let physMs = 0;   /* 物理解算耗时滑动平均（ms/帧），PHYS 面板实时显示 */
 
 /* PHYS-5：参数持久化（localStorage）——刷新页面自动恢复上次设置 */
@@ -2444,6 +2458,7 @@ bindRange('soft-grav', 'soft-grav-v', x => Math.round(x * 100) + '%', x => {
 });
 /* 帧率上限：0 = 不限（默认）；>0 时跳过不足间隔的 rAF 帧（渲染与物理一起降频） */
 bindRange('fps-cap', 'fps-cap-v', x => x == 0 ? '不限' : x + ' FPS', x => { physCfg.fpsCap = x; savePhysCfg(); });
+bindRange('brightness', 'brightness-v', x => Math.round(x * 100) + '%', x => { physCfg.brightness = x; applyBrightness(); savePhysCfg(); });
 bindRange('wind-power', 'wind-power-v', x => x + '%', x => { physCfg.wind = x / 100; savePhysCfg(); });
 
 document.getElementById('phys-reset').addEventListener('click', () => {
@@ -2494,10 +2509,11 @@ function syncPhysUI() {
   setRangeVal('phys-grav', physCfg.gravity);
   setRangeVal('soft-grav', physCfg.softGrav);
   setRangeVal('fps-cap', physCfg.fpsCap);
+  setRangeVal('brightness', physCfg.brightness);
   setRangeVal('wind-power', physCfg.wind * 100);
   updateWindUI();
   setWindArrowAlpha(physCfg.windOn ? 0.85 : 0.25);
-  /* 同步运行时对象（历史遗留：只同步复选框、漏同步控件，导致 localStorage 恢复后 UI 与行为不一致） */
+  applyBrightness();
   windArrow.visible = physCfg.arrow;
   if (controls) controls.autoRotate = physCfg.autoRotate;
 }
@@ -2551,6 +2567,7 @@ try {
     }
     Object.assign(physCfg, saved);
     syncPhysUI();
+    applyBrightness();
     appendLine({ t: '[ PHYS ] 已恢复上次参数设置', c: 'ok' });
   }
 } catch (e) {
