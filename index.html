@@ -2087,12 +2087,15 @@ document.getElementById('mi-pmx-file').addEventListener('change', async e => {
     if (data.textures) {
       for (const t of data.textures) if (t) texPaths.add(t.replace(/\\/g, '/'));
     }
-    /* 提取唯一文件夹前缀 */
+    /* 提取唯一文件夹前缀；根目录纹理（无 / 前缀）单独标记 */
     const folders = new Set();
+    let hasRoot = false;
     for (const p of texPaths) {
       const parts = p.split('/');
       if (parts.length > 1) folders.add(parts[0]);   /* 取第一级目录：toon、tex、spa 等 */
+      else hasRoot = true;                            /* 根目录直接放文件名 */
     }
+    if (hasRoot) folders.add('__root__');
     /* 动态生成文件夹选择行 */
     buildFolderRows(folders.size > 0 ? [...folders] : ['textures'], texPaths);
   } catch (err) {
@@ -2106,13 +2109,14 @@ function buildFolderRows(folders, texPaths) {
   miTexFolders = {};
   miTexRows.innerHTML = '';
   for (const folder of folders) {
+    const isRoot = folder === '__root__';
     miTexFolders[folder] = [];
     const row = document.createElement('div');
     row.className = 'import-row';
-    /* 显示该文件夹需要哪些文件 */
-    const needed = texPaths ? [...texPaths].filter(p => p.startsWith(folder + '/')).map(p => p.split('/').pop()).join(', ') : '';
+    /* 显示该文件夹需要哪些文件（根目录 = 无前缀路径，其他 = folder/ 前缀路径） */
+    const needed = texPaths ? [...texPaths].filter(p => isRoot ? !p.includes('/') : p.startsWith(folder + '/')).map(p => p.split('/').pop()).join(', ') : '';
     row.innerHTML =
-      '<span class="import-label"><i class="material-icons">folder</i>' + folder + '</span>' +
+      '<span class="import-label"><i class="material-icons">folder</i>' + (isRoot ? '根目录' : folder) + '</span>' +
       '<span class="import-file mi-folder-name">未选择' + (needed ? '（需: ' + needed + '）' : '') + '</span>' +
       '<button class="pp-reset import-btn mi-folder-btn">选文件夹</button>' +
       '<input type="file" webkitdirectory style="display:none">';
@@ -2142,11 +2146,16 @@ function releaseMiTexUrls() {
 
 /* 将文件列表注册到纹理映射表（保留文件夹相对路径） */
 function registerTexFiles(files, folderName) {
+  const isRoot = folderName === '__root__';
   for (const f of files) {
     const url = URL.createObjectURL(f);
     miTexUrls.push(url);
-    const folderKey = (folderName + '/' + f.name).toLowerCase();
-    miTexMap[folderKey] = url;
+    /* 1. 按 "folder/filename" 注册（精确匹配：toon/hair.png）——根目录跳过（无前缀） */
+    if (!isRoot) {
+      const folderKey = (folderName + '/' + f.name).toLowerCase();
+      miTexMap[folderKey] = url;
+    }
+    /* 2. 如果 webkitRelativePath 有值，也按它注册（兼容桌面端） */
     if (f.webkitRelativePath) {
       const parts = f.webkitRelativePath.split('/');
       if (parts.length >= 2) {
@@ -2154,6 +2163,7 @@ function registerTexFiles(files, folderName) {
         miTexMap[rel] = url;
       }
     }
+    /* 3. 按纯文件名注册（兜底：hair.png）——根目录纹理主要靠这个匹配 */
     miTexMap[f.name.toLowerCase()] = url;
   }
 }
