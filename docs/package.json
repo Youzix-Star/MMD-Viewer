@@ -6,6 +6,9 @@
     "build": "vitepress build",
     "preview": "vitepress preview"
   },
+  "dependencies": {
+    "twikoo": "^1.6.40"
+  },
   "devDependencies": {
     "vitepress": "^1.6.3"
   }
