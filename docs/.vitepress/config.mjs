@@ -14,6 +14,7 @@ export default defineConfig({
     ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap' }],
   ],
   themeConfig: {
+    logo: '/logo.png',
     nav: [
       { text: '首页', link: '/' },
       {
