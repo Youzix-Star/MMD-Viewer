@@ -11,7 +11,7 @@ hero:
   actions:
     - theme: brand
       text: 快速开始
-      link: /guide/
+      link: /start/
     - theme: alt
       text: GitHub 仓库
       link: https://github.com/Youzix-Star/MMD-Viewer
