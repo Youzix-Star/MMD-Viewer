@@ -676,6 +676,15 @@
           <span class="pp-label"><i class="material-icons">visibility</i>物理调试</span>
           <label class="switch"><input type="checkbox" id="phys-debug-on"><span class="slider"></span></label>
         </div>
+        <div style="border-top:1px solid var(--line);margin:6px 0 4px;padding-top:6px;font-size:10px;color:var(--dim);letter-spacing:1px">调试</div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">blur_linear</i>线框</span>
+          <label class="switch"><input type="checkbox" id="debug-wireframe"><span class="slider"></span></label>
+        </div>
+        <div class="pp-row">
+          <span class="pp-label"><i class="material-icons">crop_square</i>包围盒</span>
+          <label class="switch"><input type="checkbox" id="debug-bbox"><span class="slider"></span></label>
+        </div>
         <div class="pp-meta"><span id="phys-meta">引擎: Ammo.js (Bullet wasm) · 刚体 -- · 约束 --</span><span id="phys-ms"> · 物理 -- ms</span></div>
       </div>
     </div>
@@ -1112,9 +1121,9 @@ const ammoReady = new Promise((resolve, reject) => {
 });
 
 /* 物理参数（PHYS 面板可调；切换模型/复位视角均不重置） */
-const physCfg = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0, brightness: 1.0 };
+const physCfg = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0, brightness: 1.0, debugWireframe: false, debugBbox: false };
 /* 出厂默认（"恢复默认"按钮用） */
-const PHYS_DEFAULTS = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0, brightness: 1.0 };
+const PHYS_DEFAULTS = { enabled: true, sway: false, amp: 0.06, speed: 1.0, gravity: 1.0, softGrav: 0.15, windOn: false, wind: 0.12, windAuto: true, windAngle: 0, autoRotate: true, debug: false, arrow: true, fpsCap: 0, brightness: 1.0, debugWireframe: false, debugBbox: false };
 let physMs = 0;   /* 物理解算耗时滑动平均（ms/帧），PHYS 面板实时显示 */
 
 /* PHYS-5：参数持久化（localStorage）——刷新页面自动恢复上次设置 */
@@ -1127,6 +1136,8 @@ let physics = null;      /* 当前模型的 MMDPhysics 实例 */
 let physicsMesh = null;  /* 物理绑定的模型（用于每帧刷骨骼矩阵） */
 let sway = null;         /* 待机摇摆状态（根骨骼/上半身引用 + 基础四元数） */
 let physicsHelper = null; /* 物理调试线框（MMDPhysicsHelper：刚体可视化） */
+let wireframeGroup = null;
+let bboxHelper = null;
 
 /* 待机摇摆：旋转根骨骼（センター），让头发/裙子/领带靠物理惯性自然摆动回弹。
  * 只摇未被动态刚体（PMX 刚体 type 1/2）绑定的骨骼，避免程序摆与物理解算互相打架。
@@ -1345,6 +1356,52 @@ function setupPhysics(mesh) {
   });
 }
 
+/* 调试可视化：线框 */
+function toggleWireframe(on) {
+  if (on && mmdMesh) {
+    wireframeGroup = new THREE.Group();
+    mmdMesh.traverse(o => {
+      if (o.isMesh && o.geometry) {
+        const wireframe = new THREE.WireframeGeometry(o.geometry);
+        const line = new THREE.LineSegments(wireframe);
+        line.material.color.setHex(0x00ff00);
+        line.material.opacity = 0.3;
+        line.material.transparent = true;
+        wireframeGroup.add(line);
+      }
+    });
+    scene.add(wireframeGroup);
+  } else if (wireframeGroup) {
+    scene.remove(wireframeGroup);
+    wireframeGroup = null;
+  }
+}
+
+/* 调试可视化：包围盒 */
+function toggleBbox(on) {
+  if (on && mmdMesh) {
+    const box = new THREE.Box3().setFromObject(mmdMesh);
+    bboxHelper = new THREE.Box3Helper(box, 0xffff00);
+    scene.add(bboxHelper);
+  } else if (bboxHelper) {
+    scene.remove(bboxHelper);
+    bboxHelper = null;
+  }
+}
+
+/* 更新调试辅助器（每帧，包围盒跟随模型） */
+function updateDebugHelpers() {
+  if (bboxHelper && mmdMesh) {
+    const box = new THREE.Box3().setFromObject(mmdMesh);
+    bboxHelper.box.copy(box);
+  }
+}
+
+function disposeDebugHelpers() {
+  if (wireframeGroup) { scene.remove(wireframeGroup); wireframeGroup = null; }
+  if (bboxHelper) { scene.remove(bboxHelper); bboxHelper = null; }
+}
+
 function updatePhysMeta(mmd) {
   document.getElementById('phys-meta').textContent = mmd
     ? '引擎: Ammo.js (Bullet wasm) · 刚体 ' + mmd.rigidBodies.length + ' · 约束 ' + mmd.constraints.length
@@ -1377,6 +1434,7 @@ let homeCam = null;            /* 模型加载后的初始视角（复位按钮�
 
 /* 释放旧模型 GPU 资源（切换模型时必须，防止内存累积） */
 function disposeModel(mesh) {
+  disposeDebugHelpers();
   mesh.traverse(o => {
     if (o.geometry) o.geometry.dispose();
     if (o.material) {
@@ -2487,6 +2545,10 @@ document.getElementById('phys-debug-on').addEventListener('change', e => {
   savePhysCfg();
 });
 
+/* 调试可视化开关 */
+document.getElementById('debug-wireframe').addEventListener('change', e => { physCfg.debugWireframe = e.target.checked; toggleWireframe(e.target.checked); savePhysCfg(); });
+document.getElementById('debug-bbox').addEventListener('change', e => { physCfg.debugBbox = e.target.checked; toggleBbox(e.target.checked); savePhysCfg(); });
+
 /* 滑块设值辅助：赋值并触发 input 事件，复用 bindRange 的显示/填充/写入逻辑 */
 function setRangeVal(id, v) {
   const el = document.getElementById(id);
@@ -2515,6 +2577,8 @@ function syncPhysUI() {
   setWindArrowAlpha(physCfg.windOn ? 0.85 : 0.25);
   applyBrightness();
   windArrow.visible = physCfg.arrow;
+  document.getElementById('debug-wireframe').checked = physCfg.debugWireframe;
+  document.getElementById('debug-bbox').checked = physCfg.debugBbox;
   if (controls) controls.autoRotate = physCfg.autoRotate;
 }
 
@@ -2641,6 +2705,7 @@ function animate() {
   ring.rotation.y = t * 0.15;
   ring.rotation.x = Math.sin(t * 0.4) * 0.15;
 
+  updateDebugHelpers();
   renderer.render(scene, camera);
 
   frames++;
