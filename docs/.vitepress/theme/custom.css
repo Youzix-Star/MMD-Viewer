@@ -3,3 +3,10 @@
   max-width: 360px !important;
   height: auto !important;
 }
+
+/* 评论区 */
+#tcomment {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid var(--vp-c-divider);
+}
