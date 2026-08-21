@@ -1455,4 +1455,39 @@ MODELS 面板头部新增「导入」按钮，支持用户在手机端选择本�
 
 ---
 
+## 🔧 2026-08-20 · 调试工具 + 功能探索
+
+### 调试可视化（已入库）
+
+- **线框叠加**：`WireframeGeometry` + `LineSegments`，绿色半透明（opacity 0.3）
+- **包围盒**：`Box3Helper`，黄色方框，每帧更新跟随模型
+- PHYS 面板「调试」区块，开关控制，physCfg 持久化
+
+### 功能探索（已回滚，仅记录经验）
+
+| 功能 | 状态 | 经验 |
+|------|------|------|
+| **Fog 雾效** | 回滚 | 距离 15-40 太远，相机近处无效果 |
+| **Bloom 辉光** | 回滚 | EffectComposer + UnrealBloomPass 可用，效果明显 |
+| **投影 Shadow** | 回滚 | 需对准 shadow camera target，地面用 ShadowMaterial |
+| **Helper 物理** | 回滚 | MMDAnimationHelper 内置物理不如手动物理（无调校） |
+| **外力/扭矩** | 回滚 | applyCentralForce/applyTorque/applyCentralImpulse 可用 |
+| **弹性/摩擦力** | 回滚 | setRestitution/setFriction 可运行时修改 |
+| **碰撞检测 Raycaster** | 回滚 | 点击模型高亮+名称显示可用 |
+| **骨骼/坐标轴/法线** | 回滚 | SkeletonHelper/AxesHelper/VertexNormalsHelper 可用 |
+
+### Three.js 未用功能清单
+
+详见 CHANGE.md 历史记录。关键未用功能：
+- Shadow Map、Post-processing、Raycaster、CSS2DRenderer、GLTFExporter
+- SkeletonHelper、AxesHelper、VertexNormalsHelper
+- loadPMD、loadVPD、mergeVmds
+- Ammo.js 碰撞检测/自定义约束/力扭矩 API
+
+### 素材纪律
+
+- 本次无素材变更
+
+---
+
 *记录由翼轸维护。改动请及时归档，保持"每一步都有据可查"。*
