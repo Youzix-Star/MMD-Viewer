@@ -19,11 +19,11 @@ python3 -m http.server 8000 --bind 0.0.0.0
 
 完整的使用文档请访问 [**在线文档**](https://youzix-star.github.io/MMD-Viewer/)（VitePress 构建），包含：
 
-* [部署与使用](https://youzix-star.github.io/MMD-Viewer/guide/deploy) —— 从零跑起来
+* [部署与使用](https://youzix-star.github.io/MMD-Viewer/setup/) —— 从零跑起来
 * [模型说明](https://youzix-star.github.io/MMD-Viewer/guide/models) —— 内置模型、添加新模型、本地导入
 * [动作播放](https://youzix-star.github.io/MMD-Viewer/guide/motion) —— 内置舞蹈、导入自定义 VMD
 * [物理系统](https://youzix-star.github.io/MMD-Viewer/guide/physics) —— 参数调校、风力系统
-* [界面说明](https://youzix-star.github.io/MMD-Viewer/guide/webui) —— 面板布局、交互细节
+* [界面说明](https://youzix-star.github.io/MMD-Viewer/ui/) —— 面板布局、交互细节
 
 本地预览文档：
 
