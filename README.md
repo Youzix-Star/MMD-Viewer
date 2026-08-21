@@ -1,6 +1,6 @@
 # MMD Viewer
 
-移动端 MMD/PMX 模型查看器。Material Design 浅色主题，支持多模型切换与实时物理模拟。基于 Three.js + Ammo.js。
+Web 端 MMD/PMX 模型查看器。Material Design 浅色主题，支持多模型切换与实时物理模拟。基于 Three.js + Ammo.js。
 
 > **物理系统**：three 官方 MMDPhysics + 参数调校（配件微重力 / 裙摆袖口约束松绑 / 微风）。实现与调参说明见 [`PHYSICS.md`](PHYSICS.md)。
 

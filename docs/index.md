@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: MMD Viewer
-  text: 移动端 MMD 模型查看器
+  text: Web 端 MMD 模型查看器
   tagline: Material Design 浅色主题，支持多模型切换与实时物理模拟。
   image:
     src: /preview.gif

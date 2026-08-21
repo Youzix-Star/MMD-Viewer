@@ -4,7 +4,7 @@ const base = process.env.DOCS_BASE || '/'
 
 export default defineConfig({
   title: 'MMD Viewer',
-  description: '移动端 MMD/PMX 模型查看器文档',
+  description: 'Web 端 MMD/PMX 模型查看器文档',
   lang: 'zh-CN',
   base,
   lastUpdated: true,

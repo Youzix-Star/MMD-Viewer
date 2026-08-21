@@ -1,6 +1,6 @@
 # 快速开始
 
-**MMD Viewer** 是一款移动端 MMD/PMX 模型查看器：
+**MMD Viewer** 是一款 Web 端 MMD/PMX 模型查看器：
 
 - **4 个内置模型**：Kasane Teto SynthV（×2）、Sour 式初音ミク（White / Black）
 - **实时物理模拟**：裙摆、头发、领带自然摆动，支持风力与微调
